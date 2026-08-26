@@ -1,0 +1,22 @@
+# Claude AI session files
+.claude/
+
+# Temporary inspect/screenshot files at root only (leading "/" anchors to
+# repo root — do NOT drop the slash, it previously matched *.mjs/*.png/etc
+# at any depth and silently excluded required source files like
+# frontend/postcss.config.mjs, frontend/public/PPLG.png, eslint.config.mjs)
+/*.mjs
+/*.png
+/*.jpg
+/*.jpeg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log

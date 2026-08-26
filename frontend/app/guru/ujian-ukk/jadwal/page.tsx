@@ -1,0 +1,6 @@
+import { CalendarCheck } from "lucide-react";
+import { PlaceholderPage } from "@/components/dashboard/PlaceholderPage";
+
+export default function GuruUkkJadwalPage() {
+  return <PlaceholderPage title="Jadwal UKK" badge="Kelola" badgeVariant="kelola" icon={CalendarCheck} />;
+}

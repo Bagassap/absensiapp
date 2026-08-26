@@ -1,0 +1,1 @@
+export const SUPER_ADMIN_LOGIN_ID = "02082021080";

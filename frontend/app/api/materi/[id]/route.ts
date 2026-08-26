@@ -1,0 +1,56 @@
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+
+const BACKEND = process.env.BACKEND_URL || "http://localhost:3001";
+
+async function getToken() {
+  const s = await cookies();
+  return s.get("token")?.value;
+}
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const token = await getToken();
+  if (!token) return NextResponse.json({ message: "Tidak terautentikasi" }, { status: 401 });
+  const { id } = await params;
+  try {
+    const res = await fetch(`${BACKEND}/api/materi/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    return NextResponse.json(await res.json().catch(() => null), { status: res.status });
+  } catch {
+    return NextResponse.json({ message: "Server tidak dapat dijangkau" }, { status: 502 });
+  }
+}
+
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const token = await getToken();
+  if (!token) return NextResponse.json({ message: "Tidak terautentikasi" }, { status: 401 });
+  const { id } = await params;
+  try {
+    const formData = await request.formData();
+    const res = await fetch(`${BACKEND}/api/materi/${id}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    return NextResponse.json(await res.json().catch(() => null), { status: res.status });
+  } catch {
+    return NextResponse.json({ message: "Server tidak dapat dijangkau" }, { status: 502 });
+  }
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const token = await getToken();
+  if (!token) return NextResponse.json({ message: "Tidak terautentikasi" }, { status: 401 });
+  const { id } = await params;
+  try {
+    const res = await fetch(`${BACKEND}/api/materi/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return NextResponse.json(await res.json().catch(() => null), { status: res.status });
+  } catch {
+    return NextResponse.json({ message: "Server tidak dapat dijangkau" }, { status: 502 });
+  }
+}
