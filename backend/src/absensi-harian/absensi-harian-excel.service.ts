@@ -4,10 +4,10 @@ import { promises as fs } from 'fs';
 import { join, normalize } from 'path';
 import { getStaticMapImage } from '../common/utils/static-map.util';
 
-type SiswaRekap = {
-  siswaId: string;
+type GuruRekap = {
+  guruId: string;
   nama: string | null;
-  nis?: string | null;
+  nip?: string | null;
   status: string | null;
   waktuAbsen?: string | null;
   lokasi?: string | null;
@@ -21,25 +21,23 @@ type SiswaRekap = {
   catatanPulang?: string | null;
 };
 
-type RekapKelasData = {
-  kelas: { nama: string } | null;
+type RekapGuruData = {
   tanggal: string;
-  siswa: SiswaRekap[];
+  guru: GuruRekap[];
 };
 
-type RangeSiswaRow = {
-  siswaId: string;
+type RangeGuruRow = {
+  guruId: string;
   nama: string | null;
-  nis: string | null;
+  nip: string | null;
   byTanggal: Record<string, { status: string | null; waktuAbsen: string | null; waktuPulang: string | null }>;
   summary: { HADIR: number; IZIN: number; SAKIT: number; ALPA: number; totalHariEfektif: number; persentaseKehadiran: number };
 };
 type RekapRangeData = {
-  kelas: { nama: string } | null;
   tanggalMulai: string;
   tanggalSelesai: string;
   tanggalList: string[];
-  siswa: RangeSiswaRow[];
+  guru: RangeGuruRow[];
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -131,15 +129,15 @@ function detectImageExtension(buffer: Buffer): 'png' | 'jpeg' | 'gif' | null {
 
 @Injectable()
 export class AbsensiHarianExcelService {
-  async build(rekap: RekapKelasData): Promise<Buffer> {
+  async build(rekap: RekapGuruData): Promise<Buffer> {
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'LMS PPLG';
+    wb.creator = 'Absensi Guru';
     wb.created = new Date();
     const ws = wb.addWorksheet('Absensi Harian', { views: [{ state: 'frozen', ySplit: 1 }] });
 
     ws.columns = [
       { header: 'Nama', key: 'nama', width: 26 },
-      { header: 'NIS', key: 'nis', width: 14 },
+      { header: 'NIP', key: 'nip', width: 18 },
       { header: 'Status', key: 'status', width: 10 },
       { header: 'Waktu Hadir', key: 'waktuAbsen', width: 12 },
       { header: 'Waktu Pulang', key: 'waktuPulang', width: 12 },
@@ -165,29 +163,29 @@ export class AbsensiHarianExcelService {
       if (col.key) colIndex[col.key] = i;
     });
 
-    for (const s of rekap.siswa) {
+    for (const g of rekap.guru) {
       const row = ws.addRow({
-        nama: s.nama || '-',
-        nis: s.nis || '-',
-        status: s.status ? (STATUS_LABEL[s.status] ?? s.status) : '-',
-        waktuAbsen: s.waktuAbsen || '-',
-        waktuPulang: s.waktuPulang || '-',
-        lokasi: s.lokasi || '-',
-        lokasiPulang: s.lokasiPulang || '-',
-        catatan: [s.catatan, s.catatanPulang].filter(Boolean).join(' | ') || '-',
+        nama: g.nama || '-',
+        nip: g.nip || '-',
+        status: g.status ? (STATUS_LABEL[g.status] ?? g.status) : '-',
+        waktuAbsen: g.waktuAbsen || '-',
+        waktuPulang: g.waktuPulang || '-',
+        lokasi: g.lokasi || '-',
+        lokasiPulang: g.lokasiPulang || '-',
+        catatan: [g.catatan, g.catatanPulang].filter(Boolean).join(' | ') || '-',
       });
       row.alignment = { vertical: 'middle', wrapText: false };
 
-      const lokasiUrl = googleMapsUrl(s.lokasi);
+      const lokasiUrl = googleMapsUrl(g.lokasi);
       if (lokasiUrl) {
         const cell = row.getCell('lokasi');
-        cell.value = { text: s.lokasi as string, hyperlink: lokasiUrl };
+        cell.value = { text: g.lokasi as string, hyperlink: lokasiUrl };
         cell.font = LINK_FONT;
       }
-      const lokasiPulangUrl = googleMapsUrl(s.lokasiPulang);
+      const lokasiPulangUrl = googleMapsUrl(g.lokasiPulang);
       if (lokasiPulangUrl) {
         const cell = row.getCell('lokasiPulang');
-        cell.value = { text: s.lokasiPulang as string, hyperlink: lokasiPulangUrl };
+        cell.value = { text: g.lokasiPulang as string, hyperlink: lokasiPulangUrl };
         cell.font = LINK_FONT;
       }
 
@@ -197,13 +195,13 @@ export class AbsensiHarianExcelService {
       // export. The Lokasi Hadir/Pulang hyperlink cells above always work
       // regardless of whether the thumbnail comes back.
       const [fotoBuf, fotoPulangBuf, mapBuf, mapPulangBuf] = await Promise.all([
-        readFotoBuffer(s.foto),
-        readFotoBuffer(s.fotoPulang),
-        getStaticMapImage(s.lokasi),
-        getStaticMapImage(s.lokasiPulang),
+        readFotoBuffer(g.foto),
+        readFotoBuffer(g.fotoPulang),
+        getStaticMapImage(g.lokasi),
+        getStaticMapImage(g.lokasiPulang),
       ]);
-      const ttdBuf = decodeTtdBuffer(s.ttd);
-      const ttdPulangBuf = decodeTtdBuffer(s.ttdPulang);
+      const ttdBuf = decodeTtdBuffer(g.ttd);
+      const ttdPulangBuf = decodeTtdBuffer(g.ttdPulang);
 
       const hasImage = [
         this.embedOrClear(wb, ws, row, colIndex.foto, fotoBuf, FOTO_SIZE),
@@ -221,27 +219,26 @@ export class AbsensiHarianExcelService {
     return Buffer.from(buf);
   }
 
-  // Weekly/monthly recap has two very different shapes: a per-kelas export
-  // is a matrix (rows = siswa, one column per date, cell = H/I/S/A) so a
-  // whole class fits on one screen/printout, while a per-siswa export is a
-  // tall date-by-date table (single student, no point in a 1-row matrix)
-  // with a summary block at the end. No foto/TTD/map embeds in either —
-  // that's harian-only, per spec, and would be far too much data across a
-  // week/month.
+  // Weekly/monthly recap has two very different shapes: a "semua guru" export
+  // is a matrix (rows = guru, one column per date, cell = H/I/S/A) so the
+  // whole school fits on one screen/printout, while a "1 guru" export is a
+  // tall date-by-date table (single guru, no point in a 1-row matrix) with a
+  // summary block at the end. No foto/TTD/map embeds in either — that's
+  // harian-only, per spec, and would be far too much data across a week/month.
   async buildRange(rekap: RekapRangeData, scope: 'kelas' | 'siswa'): Promise<Buffer> {
-    return scope === 'kelas' ? this.buildRangeMatrix(rekap) : this.buildRangeSiswa(rekap);
+    return scope === 'kelas' ? this.buildRangeMatrix(rekap) : this.buildRangeGuru(rekap);
   }
 
   private async buildRangeMatrix(rekap: RekapRangeData): Promise<Buffer> {
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'LMS PPLG';
+    wb.creator = 'Absensi Guru';
     wb.created = new Date();
     const ws = wb.addWorksheet('Rekap Absensi', { views: [{ state: 'frozen', xSplit: 2, ySplit: 1 }] });
 
     const dateCols = rekap.tanggalList.map((tgl) => ({ header: formatTanggalHeader(tgl), key: `d_${tgl}`, width: 6 }));
     ws.columns = [
       { header: 'Nama', key: 'nama', width: 26 },
-      { header: 'NIS', key: 'nis', width: 14 },
+      { header: 'NIP', key: 'nip', width: 18 },
       ...dateCols,
       { header: 'Hadir', key: 'totalHadir', width: 8 },
       { header: 'Izin', key: 'totalIzin', width: 8 },
@@ -256,18 +253,18 @@ export class AbsensiHarianExcelService {
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
     headerRow.height = 24;
 
-    for (const s of rekap.siswa) {
+    for (const g of rekap.guru) {
       const rowData: Record<string, string | number> = {
-        nama: s.nama || '-',
-        nis: s.nis || '-',
-        totalHadir: s.summary.HADIR,
-        totalIzin: s.summary.IZIN,
-        totalSakit: s.summary.SAKIT,
-        totalAlpa: s.summary.ALPA,
-        persentase: `${s.summary.persentaseKehadiran}%`,
+        nama: g.nama || '-',
+        nip: g.nip || '-',
+        totalHadir: g.summary.HADIR,
+        totalIzin: g.summary.IZIN,
+        totalSakit: g.summary.SAKIT,
+        totalAlpa: g.summary.ALPA,
+        persentase: `${g.summary.persentaseKehadiran}%`,
       };
       for (const tgl of rekap.tanggalList) {
-        const status = s.byTanggal[tgl]?.status;
+        const status = g.byTanggal[tgl]?.status;
         rowData[`d_${tgl}`] = status ? (STATUS_LETTER[status] ?? '?') : '-';
       }
       const row = ws.addRow(rowData);
@@ -275,7 +272,7 @@ export class AbsensiHarianExcelService {
       row.getCell('nama').alignment = { vertical: 'middle', horizontal: 'left' };
 
       for (const tgl of rekap.tanggalList) {
-        const status = s.byTanggal[tgl]?.status;
+        const status = g.byTanggal[tgl]?.status;
         const cell = row.getCell(`d_${tgl}`);
         if (status && STATUS_FILL[status]) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: STATUS_FILL[status] } };
@@ -290,11 +287,11 @@ export class AbsensiHarianExcelService {
     return Buffer.from(buf);
   }
 
-  private async buildRangeSiswa(rekap: RekapRangeData): Promise<Buffer> {
+  private async buildRangeGuru(rekap: RekapRangeData): Promise<Buffer> {
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'LMS PPLG';
+    wb.creator = 'Absensi Guru';
     wb.created = new Date();
-    const s = rekap.siswa[0];
+    const g = rekap.guru[0];
     const ws = wb.addWorksheet('Rekap Absensi', { views: [{ state: 'frozen', ySplit: 1 }] });
 
     ws.columns = [
@@ -310,7 +307,7 @@ export class AbsensiHarianExcelService {
     headerRow.height = 20;
 
     for (const tgl of rekap.tanggalList) {
-      const rec = s?.byTanggal[tgl];
+      const rec = g?.byTanggal[tgl];
       const status = rec?.status;
       const row = ws.addRow({
         tanggal: formatTanggalFull(tgl),
@@ -322,16 +319,16 @@ export class AbsensiHarianExcelService {
       row.getCell('status').font = status ? { name: FONT_NAME, bold: true, color: { argb: STATUS_FONT[status] ?? 'FF334155' } } : NA_FONT;
     }
 
-    if (s) {
+    if (g) {
       ws.addRow({});
       const titleRow = ws.addRow({ tanggal: 'RINGKASAN' });
       titleRow.font = { name: FONT_NAME, bold: true, color: { argb: 'FF334155' } };
-      ws.addRow({ tanggal: 'Total Hari Efektif', status: String(s.summary.totalHariEfektif) });
-      ws.addRow({ tanggal: 'Total Hadir', status: String(s.summary.HADIR) });
-      ws.addRow({ tanggal: 'Total Izin', status: String(s.summary.IZIN) });
-      ws.addRow({ tanggal: 'Total Sakit', status: String(s.summary.SAKIT) });
-      ws.addRow({ tanggal: 'Total Alpa', status: String(s.summary.ALPA) });
-      const pctRow = ws.addRow({ tanggal: 'Persentase Kehadiran', status: `${s.summary.persentaseKehadiran}%` });
+      ws.addRow({ tanggal: 'Total Hari Efektif', status: String(g.summary.totalHariEfektif) });
+      ws.addRow({ tanggal: 'Total Hadir', status: String(g.summary.HADIR) });
+      ws.addRow({ tanggal: 'Total Izin', status: String(g.summary.IZIN) });
+      ws.addRow({ tanggal: 'Total Sakit', status: String(g.summary.SAKIT) });
+      ws.addRow({ tanggal: 'Total Alpa', status: String(g.summary.ALPA) });
+      const pctRow = ws.addRow({ tanggal: 'Persentase Kehadiran', status: `${g.summary.persentaseKehadiran}%` });
       pctRow.font = { name: FONT_NAME, bold: true, color: { argb: 'FF3B7CE8' } };
     }
 

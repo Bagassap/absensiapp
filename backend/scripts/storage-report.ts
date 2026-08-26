@@ -65,7 +65,7 @@ async function main() {
   }
 
   // --- uploads/ breakdown per folder ---
-  const subfolders = ['absensi-harian', 'absensi-ukk', 'ukk-soal', 'ukk-submisi'];
+  const subfolders = ['absensi-harian'];
   console.log(`\nFolder uploads/ — breakdown per jenis:`);
   let totalBytes = 0;
   let totalCount = 0;

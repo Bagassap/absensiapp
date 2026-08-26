@@ -15,14 +15,9 @@ export class ChangePasswordDto {
   confirmPassword: string;
 
   // Identity verification for a FORCED password change (mustChangePassword),
-  // required to stop someone who only knows a classmate's NIS from locking
-  // the real owner out — see AuthService.changePassword for which of these
-  // two is actually required, based on profileCompleted.
+  // required to stop someone who only knows a colleague's login ID from
+  // locking the real owner out — see AuthService.changePassword.
   @IsString()
   @IsOptional()
   namaKonfirmasi?: string;
-
-  @IsString()
-  @IsOptional()
-  tanggalLahirKonfirmasi?: string;
 }

@@ -1,5 +1,4 @@
-import { IsString, IsOptional, IsArray, IsIn, IsInt, Min, Max, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsIn, IsInt, Min, Max } from 'class-validator';
 
 export class AbsenSendiriHarianDto {
   @IsString()
@@ -24,31 +23,7 @@ export class AbsenSendiriHarianDto {
   catatan?: string;
 }
 
-class AbsensiItemDto {
-  @IsString()
-  siswaId!: string;
-
-  @IsString()
-  status!: string;
-}
-
-export class UpsertAbsensiHarianDto {
-  @IsString()
-  kelasId!: string;
-
-  @IsString()
-  tanggal!: string;
-
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => AbsensiItemDto)
-  absensi!: AbsensiItemDto[];
-}
-
 export class KirimPengingatDto {
-  @IsString()
-  kelasId!: string;
-
   @IsString()
   tanggal!: string;
 }

@@ -23,11 +23,4 @@ export class DashboardController {
   getGuru(@Request() req: any) {
     return this.service.getGuruStats(req.user.id);
   }
-
-  @UseGuards(RolesGuard)
-  @Roles(Role.SISWA)
-  @Get('siswa')
-  getSiswa(@Request() req: any) {
-    return this.service.getSiswaStats(req.user.id);
-  }
 }

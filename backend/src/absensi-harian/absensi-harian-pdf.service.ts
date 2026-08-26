@@ -4,10 +4,10 @@ import { promises as fs } from 'fs';
 import { join, normalize } from 'path';
 import { getStaticMapImage } from '../common/utils/static-map.util';
 
-type SiswaRekap = {
-  siswaId: string;
+type GuruRekap = {
+  guruId: string;
   nama: string | null;
-  nis?: string | null;
+  nip?: string | null;
   status: string | null;
   waktuAbsen?: string | null;
   lokasi?: string | null;
@@ -21,16 +21,15 @@ type SiswaRekap = {
   catatanPulang?: string | null;
 };
 
-type RekapKelasData = {
-  kelas: { nama: string } | null;
+type RekapGuruData = {
   tanggal: string;
-  siswa: SiswaRekap[];
+  guru: GuruRekap[];
 };
 
-type RangeSiswaRow = {
-  siswaId: string;
+type RangeGuruRow = {
+  guruId: string;
   nama: string | null;
-  nis: string | null;
+  nip: string | null;
   byTanggal: Record<string, {
     status: string | null; waktuAbsen: string | null; waktuPulang: string | null;
     foto: string | null; ttd: string | null; lokasi: string | null;
@@ -39,11 +38,10 @@ type RangeSiswaRow = {
   summary: { HADIR: number; IZIN: number; SAKIT: number; ALPA: number; totalHariEfektif: number; persentaseKehadiran: number };
 };
 type RekapRangeData = {
-  kelas: { nama: string } | null;
   tanggalMulai: string;
   tanggalSelesai: string;
   tanggalList: string[];
-  siswa: RangeSiswaRow[];
+  guru: RangeGuruRow[];
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -147,10 +145,9 @@ function formatTanggalShort(tanggal: string): string {
 
 @Injectable()
 export class AbsensiHarianPdfService {
-  async build(rekap: RekapKelasData, opts: { title?: string; entityLabel?: string; emptyMessage?: string } = {}): Promise<Buffer> {
-    const title = opts.title ?? 'LAPORAN ABSENSI HARIAN';
-    const entityLabel = opts.entityLabel ?? 'Kelas';
-    const emptyMessage = opts.emptyMessage ?? 'Tidak ada siswa di kelas ini.';
+  async build(rekap: RekapGuruData, opts: { title?: string; emptyMessage?: string } = {}): Promise<Buffer> {
+    const title = opts.title ?? 'LAPORAN ABSENSI HARIAN GURU';
+    const emptyMessage = opts.emptyMessage ?? 'Tidak ada guru terdaftar.';
 
     const doc = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true, autoFirstPage: false });
     registerFonts(doc);
@@ -162,16 +159,15 @@ export class AbsensiHarianPdfService {
     });
 
     const tglFmt = formatTanggal(rekap.tanggal);
-    const kelasNama = rekap.kelas?.nama ?? '-';
-    const siswaList = rekap.siswa;
+    const guruList = rekap.guru;
 
-    if (siswaList.length === 0) {
+    if (guruList.length === 0) {
       doc.addPage();
       doc.fontSize(14).fillColor('#64748b').text(emptyMessage, 40, 40);
     } else {
-      for (let i = 0; i < siswaList.length; i++) {
+      for (let i = 0; i < guruList.length; i++) {
         doc.addPage();
-        await this.renderPage(doc, siswaList[i], kelasNama, tglFmt, i, siswaList.length, title, entityLabel);
+        await this.renderPage(doc, guruList[i], tglFmt, i, guruList.length, title);
       }
     }
 
@@ -179,17 +175,16 @@ export class AbsensiHarianPdfService {
     return done;
   }
 
-  // Weekly/monthly recap: still one page per student, but instead of the
+  // Weekly/monthly recap: still one page per guru, but instead of the
   // full-size per-day foto/TTD/map dokumentasi block (which would mean dozens
-  // of large images per student for a month), each page shows a summary + a
+  // of large images per guru for a month), each page shows a summary + a
   // Tanggal/Status/Waktu/Selfie/TTD/GPS table for every effective school day
   // in the range, with the Selfie/TTD photos embedded as small thumbnails
   // (GPS stays a Maps link — a thumbnail per row for that too would be too
   // much). A month tops out around ~23 rows, which comfortably fits one A4
-  // page alongside the header/summary — no pagination-within-student.
-  async buildRange(rekap: RekapRangeData, opts: { entityLabel?: string; emptyMessage?: string } = {}): Promise<Buffer> {
-    const entityLabel = opts.entityLabel ?? 'Kelas';
-    const emptyMessage = opts.emptyMessage ?? 'Tidak ada siswa di kelas ini.';
+  // page alongside the header/summary — no pagination-within-guru.
+  async buildRange(rekap: RekapRangeData, opts: { emptyMessage?: string } = {}): Promise<Buffer> {
+    const emptyMessage = opts.emptyMessage ?? 'Tidak ada guru terdaftar.';
 
     const doc = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true, autoFirstPage: false });
     registerFonts(doc);
@@ -200,16 +195,15 @@ export class AbsensiHarianPdfService {
       doc.on('error', reject);
     });
 
-    const kelasNama = rekap.kelas?.nama ?? '-';
     const periodeLabel = `${formatTanggal(rekap.tanggalMulai)} – ${formatTanggal(rekap.tanggalSelesai)}`;
 
-    if (rekap.siswa.length === 0) {
+    if (rekap.guru.length === 0) {
       doc.addPage();
       doc.fontSize(14).fillColor('#64748b').text(emptyMessage, 40, 40);
     } else {
-      for (let i = 0; i < rekap.siswa.length; i++) {
+      for (let i = 0; i < rekap.guru.length; i++) {
         doc.addPage();
-        await this.renderRangePage(doc, rekap.siswa[i], kelasNama, periodeLabel, rekap.tanggalList, i, rekap.siswa.length, entityLabel);
+        await this.renderRangePage(doc, rekap.guru[i], periodeLabel, rekap.tanggalList, i, rekap.guru.length);
       }
     }
 
@@ -219,13 +213,11 @@ export class AbsensiHarianPdfService {
 
   private async renderRangePage(
     doc: PDFKit.PDFDocument,
-    s: RangeSiswaRow,
-    kelasNama: string,
+    g: RangeGuruRow,
     periodeLabel: string,
     tanggalList: string[],
     idx: number,
     total: number,
-    entityLabel: string,
   ) {
     const margin = 40;
     const pageWidth = doc.page.width;
@@ -239,10 +231,10 @@ export class AbsensiHarianPdfService {
     doc.font('Satoshi');
     y += 20;
 
-    doc.font('Satoshi-Bold').fontSize(20).fillColor('#1C2B33').text(s.nama || '-', margin, y, { width: contentWidth });
+    doc.font('Satoshi-Bold').fontSize(20).fillColor('#1C2B33').text(g.nama || '-', margin, y, { width: contentWidth });
     doc.font('Satoshi');
     y = doc.y + 4;
-    doc.fontSize(11).fillColor('#64748b').text(`NIS: ${s.nis ?? '-'}   ·   ${entityLabel}: ${kelasNama}`, margin, y, { width: contentWidth });
+    doc.fontSize(11).fillColor('#64748b').text(`NIP: ${g.nip ?? '-'}`, margin, y, { width: contentWidth });
     y = doc.y + 2;
     doc.fontSize(11).fillColor('#64748b').text(`Periode: ${periodeLabel}`, margin, y, { width: contentWidth });
     y = doc.y + 12;
@@ -250,7 +242,7 @@ export class AbsensiHarianPdfService {
     doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor(BRAND_BLUE_BORDER).lineWidth(1).stroke();
     y += 14;
 
-    const summary = s.summary;
+    const summary = g.summary;
     const badges: { label: string; count: number; clr: string; bg: string }[] = [
       { label: 'Hadir', count: summary.HADIR, clr: STATUS_COLOR.HADIR, bg: STATUS_BG.HADIR },
       { label: 'Izin', count: summary.IZIN, clr: STATUS_COLOR.IZIN, bg: STATUS_BG.IZIN },
@@ -286,7 +278,7 @@ export class AbsensiHarianPdfService {
 
     const rowMedia = await Promise.all(
       tanggalList.map(async (tgl) => {
-        const rec = s.byTanggal[tgl];
+        const rec = g.byTanggal[tgl];
         const fotoBuf = await readFotoBuffer(rec?.foto || rec?.fotoPulang);
         const ttdBuf = decodeTtdBuffer(rec?.ttd || rec?.ttdPulang);
         return { fotoBuf, ttdBuf };
@@ -309,7 +301,7 @@ export class AbsensiHarianPdfService {
     }
 
     tanggalList.forEach((tgl, i) => {
-      const rec = s.byTanggal[tgl];
+      const rec = g.byTanggal[tgl];
       const status = rec?.status;
       const label = status ? (STATUS_LABEL[status] ?? status) : '-';
       const clr = status ? (STATUS_COLOR[status] ?? '#64748b') : '#94a3b8';
@@ -382,13 +374,11 @@ export class AbsensiHarianPdfService {
 
   private async renderPage(
     doc: PDFKit.PDFDocument,
-    s: SiswaRekap,
-    kelasNama: string,
+    g: GuruRekap,
     tglFmt: string,
     idx: number,
     total: number,
     title: string,
-    entityLabel: string,
   ) {
     const margin = 40;
     const pageWidth = doc.page.width;
@@ -400,10 +390,10 @@ export class AbsensiHarianPdfService {
     doc.font('Satoshi');
     y += 20;
 
-    doc.font('Satoshi-Bold').fontSize(20).fillColor('#1C2B33').text(s.nama || '-', margin, y, { width: contentWidth });
+    doc.font('Satoshi-Bold').fontSize(20).fillColor('#1C2B33').text(g.nama || '-', margin, y, { width: contentWidth });
     doc.font('Satoshi');
     y = doc.y + 4;
-    doc.fontSize(11).fillColor('#64748b').text(`NIS: ${s.nis ?? '-'}   ·   ${entityLabel}: ${kelasNama}`, margin, y, { width: contentWidth });
+    doc.fontSize(11).fillColor('#64748b').text(`NIP: ${g.nip ?? '-'}`, margin, y, { width: contentWidth });
     y = doc.y + 2;
     doc.fontSize(11).fillColor('#64748b').text(`Tanggal: ${tglFmt}`, margin, y, { width: contentWidth });
     y = doc.y + 12;
@@ -411,7 +401,7 @@ export class AbsensiHarianPdfService {
     doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor('#e2e8f0').lineWidth(1).stroke();
     y += 16;
 
-    const status = s.status ?? 'ALPA';
+    const status = g.status ?? 'ALPA';
     const label = STATUS_LABEL[status] ?? status;
     const clr = STATUS_COLOR[status] ?? '#64748b';
     const bg = STATUS_BG[status] ?? '#F1F5F8';
@@ -421,15 +411,15 @@ export class AbsensiHarianPdfService {
     y += 40;
 
     const hasAnyData = !!(
-      s.status ||
-      s.waktuAbsen ||
-      s.waktuPulang ||
-      s.foto ||
-      s.fotoPulang ||
-      s.ttd ||
-      s.ttdPulang ||
-      s.catatan ||
-      s.catatanPulang
+      g.status ||
+      g.waktuAbsen ||
+      g.waktuPulang ||
+      g.foto ||
+      g.fotoPulang ||
+      g.ttd ||
+      g.ttdPulang ||
+      g.catatan ||
+      g.catatanPulang
     );
     if (!hasAnyData) {
       doc.fontSize(11).fillColor('#94a3b8').text('Tidak ada data absensi untuk tanggal ini.', margin, y, { width: contentWidth });
@@ -441,27 +431,27 @@ export class AbsensiHarianPdfService {
 
     doc.fillColor('#94a3b8').fontSize(8).text('WAKTU HADIR', margin, y, { width: colW - 10 });
     doc.fillColor('#94a3b8').fontSize(8).text('WAKTU PULANG', margin + colW, y, { width: colW - 10 });
-    doc.fillColor('#334155').fontSize(10).text(s.waktuAbsen || '-', margin, y + 11, { width: colW - 10 });
-    doc.fillColor('#334155').fontSize(10).text(s.waktuPulang || '-', margin + colW, y + 11, { width: colW - 10 });
+    doc.fillColor('#334155').fontSize(10).text(g.waktuAbsen || '-', margin, y + 11, { width: colW - 10 });
+    doc.fillColor('#334155').fontSize(10).text(g.waktuPulang || '-', margin + colW, y + 11, { width: colW - 10 });
     y += rowH;
 
-    const lokasiUrl = googleMapsUrl(s.lokasi);
-    const lokasiPulangUrl = googleMapsUrl(s.lokasiPulang);
+    const lokasiUrl = googleMapsUrl(g.lokasi);
+    const lokasiPulangUrl = googleMapsUrl(g.lokasiPulang);
     // Map thumbnails are best-effort — getStaticMapImage() never throws and
     // resolves to null on any failure (invalid coords, network error,
     // timeout), so a slow/unreachable tile server can never block PDF
     // generation. The lokasi text + Google Maps link above always render
     // regardless of whether the thumbnail comes back.
     const [mapBuf, mapPulangBuf] = await Promise.all([
-      getStaticMapImage(s.lokasi),
-      getStaticMapImage(s.lokasiPulang),
+      getStaticMapImage(g.lokasi),
+      getStaticMapImage(g.lokasiPulang),
     ]);
     doc.fillColor('#94a3b8').fontSize(8).text('LOKASI HADIR', margin, y, { width: colW - 10 });
     doc.fillColor('#94a3b8').fontSize(8).text('LOKASI PULANG', margin + colW, y, { width: colW - 10 });
     doc
       .fillColor(lokasiUrl ? '#0064E0' : '#334155')
       .fontSize(10)
-      .text(s.lokasi || '-', margin, y + 11, {
+      .text(g.lokasi || '-', margin, y + 11, {
         width: colW - 10,
         underline: !!lokasiUrl,
         link: lokasiUrl ?? undefined,
@@ -469,7 +459,7 @@ export class AbsensiHarianPdfService {
     doc
       .fillColor(lokasiPulangUrl ? '#0064E0' : '#334155')
       .fontSize(10)
-      .text(s.lokasiPulang || '-', margin + colW, y + 11, {
+      .text(g.lokasiPulang || '-', margin + colW, y + 11, {
         width: colW - 10,
         underline: !!lokasiPulangUrl,
         link: lokasiPulangUrl ?? undefined,
@@ -486,10 +476,10 @@ export class AbsensiHarianPdfService {
     }
     y = (mapBuf || mapPulangBuf) ? mapY + mapH + 10 : y + rowH;
 
-    if (s.catatan || s.catatanPulang) {
+    if (g.catatan || g.catatanPulang) {
       doc.fillColor('#94a3b8').fontSize(8).text('CATATAN', margin, y, { width: contentWidth });
       y += 11;
-      const catatanText = [s.catatan, s.catatanPulang].filter(Boolean).join('  |  ');
+      const catatanText = [g.catatan, g.catatanPulang].filter(Boolean).join('  |  ');
       doc.fillColor('#334155').fontSize(10).text(catatanText, margin, y, {
         width: contentWidth,
         height: 40,
@@ -510,9 +500,9 @@ export class AbsensiHarianPdfService {
     const boxW = (contentWidth - gap) / 2;
     const boxH = 170;
 
-    const [fotoBuf, fotoPulangBuf] = await Promise.all([readFotoBuffer(s.foto), readFotoBuffer(s.fotoPulang)]);
-    const ttdBuf = decodeTtdBuffer(s.ttd);
-    const ttdPulangBuf = decodeTtdBuffer(s.ttdPulang);
+    const [fotoBuf, fotoPulangBuf] = await Promise.all([readFotoBuffer(g.foto), readFotoBuffer(g.fotoPulang)]);
+    const ttdBuf = decodeTtdBuffer(g.ttd);
+    const ttdPulangBuf = decodeTtdBuffer(g.ttdPulang);
 
     this.drawMediaBox(doc, margin, y, boxW, boxH, 'Foto Hadir', fotoBuf, 'Foto tidak tersedia');
     this.drawMediaBox(doc, margin + boxW + gap, y, boxW, boxH, 'Foto Pulang', fotoPulangBuf, 'Foto tidak tersedia');
