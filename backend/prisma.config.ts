@@ -5,7 +5,6 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
-    seed: 'tsx prisma/import-users-csv.ts',
   },
   datasource: {
     url: process.env['DATABASE_URL'],
