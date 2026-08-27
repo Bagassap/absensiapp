@@ -14,11 +14,9 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const periode = searchParams.get("periode") ?? "";
-  const kelasId = searchParams.get("kelasId") ?? "";
 
   const qs = new URLSearchParams();
   if (periode) qs.set("periode", periode);
-  if (kelasId) qs.set("kelasId", kelasId);
 
   try {
     const res = await fetch(`${BACKEND}/api/absensi-harian/laporan-sering-tidak-hadir?${qs}`, {

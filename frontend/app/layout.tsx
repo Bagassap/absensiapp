@@ -21,9 +21,9 @@ const satoshi = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "LMS PPLG | SMK Ma'arif NU 01 Limpung",
+  title: "Absensi Guru | SMK Ma'arif NU 01 Limpung",
   description:
-    "Sistem pembelajaran digital untuk siswa, guru, dan admin jurusan Pengembangan Perangkat Lunak dan Gim SMK Ma'arif NU 01 Limpung.",
+    "Sistem presensi kehadiran harian guru SMK Ma'arif NU 01 Limpung.",
 };
 
 export default function RootLayout({

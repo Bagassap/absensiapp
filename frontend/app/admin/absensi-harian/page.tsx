@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import {
-  ClipboardCheck, CalendarDays, BookOpen,
-  Settings2, ArrowRight, ChevronLeft, ChevronRight,
-  Users, TrendingUp, LogOut, FileText, Download,
+  ClipboardCheck, CalendarDays, PieChart,
+  Users, TrendingUp, LogOut, FileText, Download, Bell, Check,
 } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
 import { DokumenModal } from "@/components/absensi-harian/DokumenModal";
@@ -15,56 +14,75 @@ import { AbsensiHarianTable } from "@/components/absensi-harian/AbsensiHarianTab
 import { BelumAbsenPanel } from "@/components/absensi-harian/BelumAbsenPanel";
 import { LaporanSeringTidakHadir } from "@/components/absensi-harian/LaporanSeringTidakHadir";
 import { JadwalAbsenCard } from "@/components/absensi-harian/JadwalAbsenCard";
-import { KelolaKelasModal, type Guru } from "@/components/absensi-harian/KelolaKelasModal";
 import { paginate } from "@/components/shared/PageSizeToggle";
-import { STATUS_CFG, PULANG_CFG, WALLET_GRADIENTS, WALLET_ON_TEXT, MONTH_NAMES, RANGE_MODE_CARDS, reportCardFg, todayJakarta, formatTgl } from "@/components/absensi-harian/shared";
-import type { Kelas, RekapKelas, SiswaAbsensi, FilterAbsensi } from "@/components/absensi-harian/types";
+import { STATUS_CFG, PULANG_CFG, MONTH_NAMES, RANGE_MODE_CARDS, reportCardFg, todayJakarta, formatTgl } from "@/components/absensi-harian/shared";
+import type { RekapGuru, GuruAbsensi, FilterAbsensi } from "@/components/absensi-harian/types";
+
+function KirimPengingatCard({ tanggal, guruList }: { tanggal: string; guruList: GuruAbsensi[] }) {
+  const toast = useToast();
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const belum = guruList.filter((g) => !g.status || g.status === "ALPA");
+
+  async function kirim() {
+    if (belum.length === 0 || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/absensi-harian/kirim-pengingat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tanggal }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { toast.error("Gagal mengirim pengingat", data?.message ?? ""); return; }
+
+      const text = belum.map((g, i) => `${i + 1}. ${g.nama}${g.nip ? ` (${g.nip})` : ""}`).join("\n");
+      try { await navigator.clipboard.writeText(text); } catch { /* clipboard opsional, notifikasi tetap terkirim */ }
+
+      setSent(true);
+      toast.success("Pengingat terkirim!", `Notifikasi masuk ke ${data.count} guru · daftar nama juga disalin`);
+      setTimeout(() => setSent(false), 2000);
+    } catch {
+      toast.error("Server tidak dapat dijangkau", "");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <button type="button" onClick={kirim} disabled={belum.length === 0 || sending}
+      className="flex w-full items-center gap-3 rounded-2xl border-2 border-transparent bg-red-50 px-4 py-3 text-left transition-all hover:border-red-200 disabled:cursor-default disabled:opacity-50 dark:bg-red-900/15 dark:hover:border-red-800/60">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EF4444] text-white">
+        {sent ? <Check size={16} /> : <Bell size={16} />}
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold text-red-700 dark:text-red-400">{sent ? "Terkirim!" : "Kirim Pengingat"}</p>
+        <p className="truncate text-[11px] font-semibold text-red-400 dark:text-red-500/80">
+          {belum.length > 0 ? `${belum.length} guru belum absen` : "Semua sudah absen"}
+        </p>
+      </div>
+    </button>
+  );
+}
 
 export default function AdminAbsensiHarianPage() {
   const toast = useToast();
-  const [kelasList, setKelasList] = useState<Kelas[]>([]);
-  const [guruList, setGuruList] = useState<Guru[]>([]);
-  const [selectedId, setSelectedId] = useState<string>("");
   const [tanggal, setTanggal] = useState(() => todayJakarta());
   const exportRange = useExportRange(tanggal);
-  const [rekapAll, setRekapAll] = useState<RekapKelas[]>([]);
+  const [rekap, setRekap] = useState<RekapGuru | null>(null);
   const [loading, setLoading] = useState(false);
-  const [dokumenSiswa, setDokumenSiswa] = useState<SiswaAbsensi | null>(null);
+  const [dokumenGuru, setDokumenGuru] = useState<GuruAbsensi | null>(null);
   const [dokumenSource, setDokumenSource] = useState<"hadir" | "pulang">("hadir");
-  const [showKelola, setShowKelola] = useState(false);
-  const [kelasPage, setKelasPage] = useState(0);
   const [activeFilter, setActiveFilter] = useState<FilterAbsensi | null>(null);
   const [tablePage, setTablePage] = useState(0);
   const [tablePageSize, setTablePageSize] = useState<number>(10);
-  const KELAS_PER_PAGE = 4;
-
-  const loadKelasList = useCallback(async () => {
-    const res = await fetch("/api/kelas");
-    const list = await res.json().catch(() => []);
-    setKelasList(Array.isArray(list) ? list : []);
-  }, []);
-
-  const loadGuruList = useCallback(async () => {
-    const res = await fetch("/api/kelas/guru-list");
-    const list = await res.json().catch(() => []);
-    setGuruList(Array.isArray(list) ? list : []);
-  }, []);
-
-  useEffect(() => { loadKelasList(); loadGuruList(); }, [loadKelasList, loadGuruList]);
-
-  useEffect(() => {
-    const maxPage = Math.max(0, Math.ceil(kelasList.length / KELAS_PER_PAGE) - 1);
-    setKelasPage((p) => Math.min(p, maxPage));
-  }, [kelasList.length]);
 
   const loadRekap = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/absensi-harian?tanggal=${tanggal}`);
-      const data = await res.json().catch(() => []);
-      const list: RekapKelas[] = Array.isArray(data) ? data : [];
-      setRekapAll(list);
-      if (!selectedId && list.length > 0) setSelectedId(list[0].kelasId);
+      const data = await res.json().catch(() => null);
+      setRekap(data && Array.isArray(data.guru) ? data : null);
     } catch {
       toast.error("Gagal memuat data absensi", "");
     } finally {
@@ -74,47 +92,44 @@ export default function AdminAbsensiHarianPage() {
 
   useEffect(() => { loadRekap(); }, [loadRekap]);
 
-  useEffect(() => { setTablePage(0); }, [selectedId, tanggal, activeFilter, tablePageSize]);
+  useEffect(() => { setTablePage(0); }, [tanggal, activeFilter, tablePageSize]);
 
-  const selected = rekapAll.find((r) => r.kelasId === selectedId) ?? null;
-  const siswaList = selected?.siswa ?? [];
-  const rekap = selected?.rekap ?? { HADIR: 0, IZIN: 0, SAKIT: 0, ALPA: 0 };
-  const pulangCount = selected?.pulangCount ?? 0;
-  const total = siswaList.length;
+  const guruList = rekap?.guru ?? [];
+  const rekapCount = rekap?.rekap ?? { HADIR: 0, IZIN: 0, SAKIT: 0, ALPA: 0 };
+  const pulangCount = rekap?.pulangCount ?? 0;
+  const total = guruList.length;
+  const sudahAbsen = guruList.filter((g) => g.status !== null).length;
+  const hadirPct = total > 0 ? Math.round((rekapCount.HADIR / total) * 100) : 0;
 
-  function kelasStat(k: Kelas) {
-    const idx = kelasList.findIndex((x) => x.id === k.id);
-    const r = rekapAll.find((x) => x.kelasId === k.id);
-    const hd = r?.rekap.HADIR ?? 0;
-    const iz = r?.rekap.IZIN ?? 0;
-    const sk = r?.rekap.SAKIT ?? 0;
-    const al = r?.rekap.ALPA ?? 0;
-    const tt = r?.siswa.length ?? k._count?.siswa ?? 0;
-    return { idx: idx < 0 ? 0 : idx, hd, iz, sk, al, tt, pct: tt > 0 ? Math.round((hd / tt) * 100) : 0 };
-  }
-  const kelasPageSlice = kelasList.slice(kelasPage * KELAS_PER_PAGE, kelasPage * KELAS_PER_PAGE + KELAS_PER_PAGE);
-  const kelasPageCount = Math.ceil(kelasList.length / KELAS_PER_PAGE);
-
-  const filteredSiswa = !activeFilter
-    ? siswaList
+  const filteredGuru = !activeFilter
+    ? guruList
     : activeFilter === "PULANG"
-      ? siswaList.filter((s) => !!s.waktuPulang)
-      : siswaList.filter((s) => s.status === activeFilter);
-  const { pageItems: pagedSiswa, pageCount: tablePageCount, start: tableStart, end: tableEnd } = paginate(filteredSiswa, tablePage, tablePageSize);
+      ? guruList.filter((g) => !!g.waktuPulang)
+      : guruList.filter((g) => g.status === activeFilter);
+  const { pageItems: pagedGuru, pageCount: tablePageCount, start: tableStart, end: tableEnd } = paginate(filteredGuru, tablePage, tablePageSize);
 
   function toggleFilter(key: FilterAbsensi) {
     setActiveFilter((prev) => (prev === key ? null : key));
   }
 
-  const hadirPct = total > 0 ? Math.round((rekap.HADIR / total) * 100) : 0;
   const filterOptions: { key: FilterAbsensi | null; label: string; icon: React.ElementType; count: number; color: string }[] = [
     { key: null, label: "Semua", icon: Users, count: total, color: "#334155" },
-    { key: "HADIR", label: "Hadir", icon: STATUS_CFG.HADIR.icon, count: rekap.HADIR, color: STATUS_CFG.HADIR.clr },
-    { key: "IZIN", label: "Izin", icon: STATUS_CFG.IZIN.icon, count: rekap.IZIN, color: STATUS_CFG.IZIN.clr },
-    { key: "SAKIT", label: "Sakit", icon: STATUS_CFG.SAKIT.icon, count: rekap.SAKIT, color: STATUS_CFG.SAKIT.clr },
-    { key: "ALPA", label: "Alpa", icon: STATUS_CFG.ALPA.icon, count: rekap.ALPA, color: STATUS_CFG.ALPA.clr },
+    { key: "HADIR", label: "Hadir", icon: STATUS_CFG.HADIR.icon, count: rekapCount.HADIR, color: STATUS_CFG.HADIR.clr },
+    { key: "IZIN", label: "Izin", icon: STATUS_CFG.IZIN.icon, count: rekapCount.IZIN, color: STATUS_CFG.IZIN.clr },
+    { key: "SAKIT", label: "Sakit", icon: STATUS_CFG.SAKIT.icon, count: rekapCount.SAKIT, color: STATUS_CFG.SAKIT.clr },
+    { key: "ALPA", label: "Alpa", icon: STATUS_CFG.ALPA.icon, count: rekapCount.ALPA, color: STATUS_CFG.ALPA.clr },
     { key: "PULANG", label: "Pulang", icon: PULANG_CFG.icon, count: pulangCount, color: PULANG_CFG.clr },
   ];
+
+  const segments = [
+    { key: "HADIR", value: rekapCount.HADIR, color: STATUS_CFG.HADIR.clr, label: STATUS_CFG.HADIR.label },
+    { key: "IZIN", value: rekapCount.IZIN, color: STATUS_CFG.IZIN.clr, label: STATUS_CFG.IZIN.label },
+    { key: "SAKIT", value: rekapCount.SAKIT, color: STATUS_CFG.SAKIT.clr, label: STATUS_CFG.SAKIT.label },
+    { key: "ALPA", value: rekapCount.ALPA, color: STATUS_CFG.ALPA.clr, label: STATUS_CFG.ALPA.label },
+  ];
+  const r = 40;
+  const circumference = 2 * Math.PI * r;
+  let cumulative = 0;
 
   return (
     <>
@@ -130,7 +145,7 @@ export default function AdminAbsensiHarianPage() {
                 <ClipboardCheck size={26} className="hidden text-white sm:block" />
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Presensi Wajib Harian</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Pemantauan Kehadiran Guru</span>
                 <h1 className="text-xl font-extrabold leading-tight text-white sm:text-2xl">Absensi Harian</h1>
               </div>
             </div>
@@ -139,88 +154,62 @@ export default function AdminAbsensiHarianPage() {
 
         <div className="mb-8 rounded-3xl border border-slate-100 bg-white p-6 shadow-lg dark:border-slate-700 dark:bg-slate-800">
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-8">
-            <div className="lg:col-span-2">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">Kelas</p>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowKelola(true)}
-                    className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
-                    <Settings2 size={12} /> Kelola Kelas
-                  </button>
-                  {kelasPageCount > 1 && (
-                    <span className="text-xs font-semibold text-slate-400">{kelasPage + 1} / {kelasPageCount}</span>
-                  )}
-                  <button type="button" onClick={() => setKelasPage((p) => Math.max(0, p - 1))} disabled={kelasPage === 0}
-                    className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
-                    <ChevronLeft size={13} />
-                  </button>
-                  <button type="button" onClick={() => setKelasPage((p) => (p + 1 < kelasPageCount ? p + 1 : p))} disabled={kelasPage + 1 >= kelasPageCount}
-                    className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
-                    <ChevronRight size={13} />
-                  </button>
+            <div className="lg:col-span-2 flex flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
+              <div className="flex items-center gap-2.5 p-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "#0082FB" }}>
+                  <PieChart size={18} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">Ringkasan Kehadiran</p>
+                  <p className="truncate text-[11px] text-slate-400 dark:text-slate-500">Distribusi status seluruh guru hari ini</p>
                 </div>
               </div>
 
-              {kelasList.length === 0 ? (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-52 animate-pulse rounded-3xl bg-slate-100 dark:bg-slate-800" />
-                  ))}
+              <div className="flex flex-col gap-6 p-4 pt-0 lg:flex-row lg:items-center">
+                <div className="flex flex-1 flex-col gap-2.5">
+                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                    Sudah <span className="font-bold text-slate-700 dark:text-slate-200">{sudahAbsen}</span> dari{" "}
+                    <span className="font-bold text-slate-700 dark:text-slate-200">{total}</span> guru tercatat absen hari ini
+                    {total - sudahAbsen > 0 ? `, ${total - sudahAbsen} lagi belum absen.` : ", semua guru sudah absen."}
+                  </p>
+                  <KirimPengingatCard tanggal={tanggal} guruList={guruList} />
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  {kelasPageSlice.map((k) => {
-                    const s = kelasStat(k);
-                    const isSelected = k.id === selectedId;
-                    const idx = s.idx % WALLET_GRADIENTS.length;
-                    const bg = WALLET_GRADIENTS[idx];
-                    const onText = WALLET_ON_TEXT[idx];
-                    return (
-                      <button type="button" key={k.id} onClick={() => setSelectedId(k.id)}
-                        className="relative flex h-52 flex-col justify-between overflow-hidden rounded-3xl p-4 text-left transition-all"
-                        style={{
-                          background: bg,
-                          color: onText,
-                          boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
-                          outline: isSelected ? `3px solid ${onText}` : "3px solid transparent",
-                          outlineOffset: isSelected ? "2px" : "0",
-                        }}>
-                        <div className="relative flex items-center gap-2">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${onText}40` }}>
-                            <BookOpen size={14} />
-                          </span>
-                          <p className="truncate text-sm font-bold">{k.nama}</p>
-                        </div>
 
-                        <div className="relative">
-                          <p className="text-2xl font-extrabold tabular-nums">
-                            {s.hd}<span className="text-sm font-semibold" style={{ color: `${onText}B3` }}>/{s.tt}</span>
-                          </p>
-                          <p className="text-[11px] font-semibold" style={{ color: `${onText}CC` }}>Hadir · {s.pct}%</p>
-                          <div className="mt-2 h-1.5 w-full rounded-full" style={{ backgroundColor: `${onText}40` }}>
-                            <div className="h-1.5 rounded-full transition-all" style={{ width: `${s.pct}%`, backgroundColor: onText }} />
-                          </div>
-                        </div>
-
-                        <p className="relative text-[10px] font-medium" style={{ color: `${onText}B3` }}>
-                          Izin {s.iz} · Sakit {s.sk} · Alpa {s.al}
-                        </p>
-                      </button>
-                    );
-                  })}
+                <div className="flex shrink-0 flex-wrap items-center justify-center gap-6">
+                  <div className="relative flex h-40 w-40 shrink-0 items-center justify-center">
+                    <svg viewBox="0 0 100 100" className="h-40 w-40 -rotate-90">
+                      <circle cx="50" cy="50" r={r} stroke="#F1F5F8" strokeWidth="12" fill="none" />
+                      {total > 0 && segments.filter((s) => s.value > 0).map((s) => {
+                        const pct = s.value / total;
+                        const dash = pct * circumference;
+                        const offset = circumference * (1 - cumulative);
+                        cumulative += pct;
+                        return (
+                          <circle key={s.key} cx="50" cy="50" r={r} stroke={s.color} strokeWidth="12" fill="none"
+                            strokeDasharray={`${dash} ${circumference - dash}`} strokeDashoffset={offset} strokeLinecap="round" />
+                        );
+                      })}
+                    </svg>
+                    <div className="absolute flex flex-col items-center">
+                      <span className="text-2xl font-extrabold text-slate-800 dark:text-white">{hadirPct}%</span>
+                      <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Hadir</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2.5">
+                    {segments.map((s) => (
+                      <div key={s.key} className="flex items-center gap-2 text-left">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{s.label} <span className="text-slate-700 dark:text-slate-200">{s.value}</span></span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
 
             <div className="flex flex-col">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">Keterangan Absensi</p>
-                <a href="#status-kehadiran-hari-ini"
-                  className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                  More <ArrowRight size={12} />
-                </a>
-              </div>
-              <BelumAbsenPanel siswaList={siswaList} />
+              <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">Keterangan Absensi</p>
+              <BelumAbsenPanel guruList={guruList} />
             </div>
           </div>
         </div>
@@ -265,7 +254,7 @@ export default function AdminAbsensiHarianPage() {
             <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 text-[11px] dark:border-slate-700">
               <span className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-300">
                 <Users size={12} className="text-[#0082FB]" />
-                Total {total} siswa
+                Total {total} guru
               </span>
               <span className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-300">
                 <TrendingUp size={12} className="text-[#0082FB]" />
@@ -273,16 +262,16 @@ export default function AdminAbsensiHarianPage() {
               </span>
               <span className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-300">
                 <LogOut size={12} className="text-[#0082FB]" />
-                Sudah pulang {pulangCount} siswa
+                Sudah pulang {pulangCount} guru
               </span>
             </div>
 
             <div className="mt-4 -mx-5 -mb-5 overflow-hidden rounded-b-3xl border-t border-slate-100 dark:border-slate-700">
               <AbsensiHarianTable
                 loading={loading}
-                hasSiswa={siswaList.length > 0}
-                filteredSiswa={filteredSiswa}
-                pagedSiswa={pagedSiswa}
+                hasGuru={guruList.length > 0}
+                filteredGuru={filteredGuru}
+                pagedGuru={pagedGuru}
                 tableStart={tableStart}
                 tableEnd={tableEnd}
                 activeFilter={activeFilter}
@@ -291,10 +280,7 @@ export default function AdminAbsensiHarianPage() {
                 tablePageCount={tablePageCount}
                 tablePageSize={tablePageSize}
                 setTablePageSize={setTablePageSize}
-                onOpenDokumen={(s, source) => { setDokumenSiswa(s); setDokumenSource(source); }}
-                kelasId={selectedId}
-                tanggal={tanggal}
-                onStatusUpdated={loadRekap}
+                onOpenDokumen={(g, source) => { setDokumenGuru(g); setDokumenSource(source); }}
               />
             </div>
           </div>
@@ -346,7 +332,7 @@ export default function AdminAbsensiHarianPage() {
               )}
 
               <div className="mt-3">
-                <ExportButtons kelasId={selectedId} kelasNama={selected?.kelas.nama ?? "Kelas"} range={exportRange.range} siswaList={siswaList} />
+                <ExportButtons range={exportRange.range} guruList={guruList} />
               </div>
               <p className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500">
                 <Download size={11} className="shrink-0 text-[#0082FB]" />
@@ -354,7 +340,7 @@ export default function AdminAbsensiHarianPage() {
               </p>
             </div>
 
-            <LaporanSeringTidakHadir kelasId={selectedId} kelasNama={selected?.kelas.nama} />
+            <LaporanSeringTidakHadir />
 
             <JadwalAbsenCard />
           </div>
@@ -362,11 +348,8 @@ export default function AdminAbsensiHarianPage() {
       </div>
 
       <AnimatePresence>
-        {dokumenSiswa && (
-          <DokumenModal siswa={dokumenSiswa} tanggal={tanggal} kelas={selected?.kelas.nama ?? ""} source={dokumenSource} onClose={() => setDokumenSiswa(null)} />
-        )}
-        {showKelola && (
-          <KelolaKelasModal kelasList={kelasList} guruList={guruList} onClose={() => setShowKelola(false)} onSaved={() => { loadKelasList(); loadRekap(); }} />
+        {dokumenGuru && (
+          <DokumenModal guru={dokumenGuru} tanggal={tanggal} source={dokumenSource} onClose={() => setDokumenGuru(null)} />
         )}
       </AnimatePresence>
     </>

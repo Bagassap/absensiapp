@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TrendingDown, ShieldCheck, Medal, AlertTriangle, Flame, Gauge, X, ArrowRight } from "lucide-react";
 import { Avatar } from "@/components/shared/Avatar";
-import { avatarColorFor } from "@/components/data-siswa/shared";
-import { formatTgl, CARD_GRADIENTS, DASHBOARD_ACCENT, DASHBOARD_PASTEL } from "./shared";
+import { avatarColor, formatTgl, CARD_GRADIENTS, DASHBOARD_ACCENT, DASHBOARD_PASTEL } from "./shared";
 import type { LaporanSeringTidakHadir as LaporanData, PeriodeLaporan } from "./types";
 
 const INLINE_LIMIT = 5;
@@ -65,26 +64,25 @@ function StatPill({
   );
 }
 
-export function LaporanSeringTidakHadir({ kelasId, kelasNama }: { kelasId: string; kelasNama?: string }) {
+export function LaporanSeringTidakHadir() {
   const [periode, setPeriode] = useState<PeriodeLaporan>("mingguan");
   const [data, setData] = useState<LaporanData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    if (!kelasId) { setData(null); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
-    const qs = new URLSearchParams({ periode, kelasId });
+    const qs = new URLSearchParams({ periode });
     fetch(`/api/absensi-harian/laporan-sering-tidak-hadir?${qs}`)
       .then((r) => r.json())
-      .then((d) => { if (!cancelled) setData(d && Array.isArray(d.siswa) ? d : null); })
+      .then((d) => { if (!cancelled) setData(d && Array.isArray(d.guru) ? d : null); })
       .catch(() => { if (!cancelled) setData(null); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [periode, kelasId]);
+  }, [periode]);
 
-  const rows = data?.siswa ?? [];
+  const rows = data?.guru ?? [];
   const totalBermasalah = rows.length;
   const alpaTertinggi = rows.reduce((m, r) => Math.max(m, r.summary.ALPA), 0);
   const rataKehadiran = rows.length > 0
@@ -101,8 +99,8 @@ export function LaporanSeringTidakHadir({ kelasId, kelasNama }: { kelasId: strin
               <TrendingDown size={18} />
             </span>
             <div>
-              <p className="text-sm font-bold text-slate-800 dark:text-white">Siswa Bermasalah</p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500">Jarang absen{kelasNama ? ` di ${kelasNama}` : ""}</p>
+              <p className="text-sm font-bold text-slate-800 dark:text-white">Guru Bermasalah</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">Jarang absen</p>
             </div>
           </div>
           <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-700/50">
@@ -130,7 +128,7 @@ export function LaporanSeringTidakHadir({ kelasId, kelasNama }: { kelasId: strin
           <div className="mt-4 flex flex-col items-center gap-2 py-6 text-center">
             <ShieldCheck size={22} className="text-emerald-400" />
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Tidak ada siswa dengan catatan alpa pada periode ini
+              Tidak ada guru dengan catatan alpa pada periode ini
             </p>
           </div>
         ) : (
@@ -138,12 +136,12 @@ export function LaporanSeringTidakHadir({ kelasId, kelasNama }: { kelasId: strin
             {inlineRows.map((r, i) => {
               const bar = severityColor(r.summary.persentaseKehadiran);
               return (
-                <div key={r.siswaId} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700/40">
+                <div key={r.guruId} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700/40">
                   <RankBadge index={i} />
-                  <Avatar src={r.fotoProfil} nama={r.nama ?? "-"} sizePx={32} fallbackBg={avatarColorFor(r.nama ?? "-")} textClassName="text-[10px] font-extrabold" />
+                  <Avatar src={r.fotoProfil} nama={r.nama ?? "-"} sizePx={32} fallbackBg={avatarColor(r.nama ?? "-")} textClassName="text-[10px] font-extrabold" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{r.nama}</p>
-                    <p className="truncate text-[10px] text-slate-400">{r.nis ?? "—"} · Alpa {r.summary.ALPA}x</p>
+                    <p className="truncate text-[10px] text-slate-400">{r.nip ?? "—"} · Alpa {r.summary.ALPA}x</p>
                   </div>
                   <span className="shrink-0 text-xs font-bold" style={{ color: bar }}>{r.summary.persentaseKehadiran}%</span>
                 </div>
@@ -155,7 +153,7 @@ export function LaporanSeringTidakHadir({ kelasId, kelasNama }: { kelasId: strin
         {totalBermasalah > INLINE_LIMIT && (
           <button type="button" onClick={() => setShowModal(true)}
             className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-100 dark:bg-red-900/20">
-            Lihat semua {totalBermasalah} siswa <ArrowRight size={12} />
+            Lihat semua {totalBermasalah} guru <ArrowRight size={12} />
           </button>
         )}
       </div>
@@ -176,7 +174,7 @@ export function LaporanSeringTidakHadir({ kelasId, kelasNama }: { kelasId: strin
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-extrabold text-slate-700 dark:text-slate-200">
-                      Siswa Sering Tidak Hadir{kelasNama ? ` · ${kelasNama}` : ""}
+                      Guru Sering Tidak Hadir
                     </p>
                     <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
                       {data ? `${formatTgl(data.tanggalMulai)} – ${formatTgl(data.tanggalSelesai)}` : "Memuat..."}
@@ -219,7 +217,7 @@ export function LaporanSeringTidakHadir({ kelasId, kelasNama }: { kelasId: strin
                 <div className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
                   <ShieldCheck size={22} className="text-emerald-400" />
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    Tidak ada siswa dengan catatan alpa pada periode ini
+                    Tidak ada guru dengan catatan alpa pada periode ini
                   </p>
                 </div>
               ) : (
@@ -229,8 +227,8 @@ export function LaporanSeringTidakHadir({ kelasId, kelasNama }: { kelasId: strin
                       style={{ gridTemplateColumns: GRID_COLS }}>
                       <span />
                       <span />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Siswa</span>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Kelas</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Guru</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">NIP</span>
                       <span className="text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Alpa</span>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Kehadiran</span>
                     </div>
@@ -238,7 +236,7 @@ export function LaporanSeringTidakHadir({ kelasId, kelasNama }: { kelasId: strin
                       {rows.map((r, i) => {
                         const bar = severityColor(r.summary.persentaseKehadiran);
                         return (
-                          <div key={r.siswaId}
+                          <div key={r.guruId}
                             className="grid items-center gap-3 px-5 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"
                             style={{ gridTemplateColumns: GRID_COLS }}>
                             <RankBadge index={i} />
@@ -246,13 +244,13 @@ export function LaporanSeringTidakHadir({ kelasId, kelasNama }: { kelasId: strin
                               src={r.fotoProfil}
                               nama={r.nama ?? "-"}
                               sizePx={32}
-                              fallbackBg={avatarColorFor(r.nama ?? "-")}
+                              fallbackBg={avatarColor(r.nama ?? "-")}
                               textClassName="text-[10px] font-extrabold"
                             />
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{r.nama}</p>
                             </div>
-                            <p className="truncate text-[11px] text-slate-400">{r.kelasNama} · {r.nis ?? "—"}</p>
+                            <p className="truncate text-[11px] text-slate-400">{r.nip ?? "—"}</p>
                             <span className="mx-auto rounded-lg bg-red-50 px-2.5 py-1 text-[11px] font-extrabold text-red-500 dark:bg-red-950">
                               {r.summary.ALPA}x
                             </span>

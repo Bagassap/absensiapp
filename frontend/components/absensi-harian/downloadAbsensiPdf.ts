@@ -52,58 +52,48 @@ async function downloadFile(url: string, filename: string, failMessage: string):
   return { ok: true };
 }
 
-export async function downloadAbsensiPdf({
-  kelasId, range, kelasNama,
-}: {
-  kelasId: string; range: ExportRange; kelasNama: string;
-}): Promise<DownloadResult> {
+export async function downloadAbsensiPdf({ range }: { range: ExportRange }): Promise<DownloadResult> {
   const qs = rangeParams(range);
-  qs.set("kelasId", kelasId);
   return downloadFile(
     `/api/absensi-harian/export-pdf?${qs}`,
-    `Absensi_${safeName(kelasNama)}_${rangeFilenamePart(range)}.pdf`,
+    `Absensi_Guru_${rangeFilenamePart(range)}.pdf`,
     "Gagal membuat PDF",
   );
 }
 
-export async function downloadAbsensiPdfSiswa({
-  siswaId, range, siswaNama,
+export async function downloadAbsensiPdfGuru({
+  guruId, range, guruNama,
 }: {
-  siswaId: string; range: ExportRange; siswaNama: string;
+  guruId: string; range: ExportRange; guruNama: string;
 }): Promise<DownloadResult> {
   const qs = rangeParams(range);
-  qs.set("siswaId", siswaId);
+  qs.set("guruId", guruId);
   return downloadFile(
-    `/api/absensi-harian/export-pdf-siswa?${qs}`,
-    `Absensi_${safeName(siswaNama)}_${rangeFilenamePart(range)}.pdf`,
+    `/api/absensi-harian/export-pdf-guru?${qs}`,
+    `Absensi_${safeName(guruNama)}_${rangeFilenamePart(range)}.pdf`,
     "Gagal membuat PDF",
   );
 }
 
-export async function downloadAbsensiExcel({
-  kelasId, range, kelasNama,
-}: {
-  kelasId: string; range: ExportRange; kelasNama: string;
-}): Promise<DownloadResult> {
+export async function downloadAbsensiExcel({ range }: { range: ExportRange }): Promise<DownloadResult> {
   const qs = rangeParams(range);
-  qs.set("kelasId", kelasId);
   return downloadFile(
     `/api/absensi-harian/export-excel?${qs}`,
-    `Absensi_${safeName(kelasNama)}_${rangeFilenamePart(range)}.xlsx`,
+    `Absensi_Guru_${rangeFilenamePart(range)}.xlsx`,
     "Gagal membuat Excel",
   );
 }
 
-export async function downloadAbsensiExcelSiswa({
-  siswaId, range, siswaNama,
+export async function downloadAbsensiExcelGuru({
+  guruId, range, guruNama,
 }: {
-  siswaId: string; range: ExportRange; siswaNama: string;
+  guruId: string; range: ExportRange; guruNama: string;
 }): Promise<DownloadResult> {
   const qs = rangeParams(range);
-  qs.set("siswaId", siswaId);
+  qs.set("guruId", guruId);
   return downloadFile(
-    `/api/absensi-harian/export-excel-siswa?${qs}`,
-    `Absensi_${safeName(siswaNama)}_${rangeFilenamePart(range)}.xlsx`,
+    `/api/absensi-harian/export-excel-guru?${qs}`,
+    `Absensi_${safeName(guruNama)}_${rangeFilenamePart(range)}.xlsx`,
     "Gagal membuat Excel",
   );
 }

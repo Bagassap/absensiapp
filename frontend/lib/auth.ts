@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 
 export type UserPayload = {
   sub: string;
-  role: "ADMIN" | "GURU" | "SISWA";
+  role: "ADMIN" | "GURU";
   nama: string;
   loginId?: string | null;
   mustChangePassword?: boolean;

@@ -4,7 +4,7 @@ import Image from "next/image";
 import { motion, type Variants } from "framer-motion";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, GraduationCap } from "lucide-react";
+import { ClipboardCheck, GraduationCap } from "lucide-react";
 
 const STYLES = `
   @keyframes gradientShift {
@@ -125,7 +125,7 @@ export function Splash() {
         animate={{ y: [0, -9, 0], rotate: [0, 5, 0] }}
         transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
       >
-        <BookOpen size={38} />
+        <ClipboardCheck size={38} />
       </motion.div>
       <motion.div
         className="pointer-events-none absolute bottom-9 right-7 text-white"
@@ -149,7 +149,7 @@ export function Splash() {
         animate={{ y: [0, -7, 0], rotate: [0, -6, 0] }}
         transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut", delay: 2.1 }}
       >
-        <BookOpen size={22} />
+        <ClipboardCheck size={22} />
       </motion.div>
 
       <div
@@ -210,7 +210,7 @@ export function Splash() {
             variants={slideLeft}
             className="text-[1.65rem] font-bold leading-tight text-white sm:text-[2rem]"
           >
-            Sistem
+            Absensi
           </motion.span>
           <motion.span
             variants={slideRight}
@@ -222,7 +222,7 @@ export function Splash() {
               backgroundClip: "text",
             }}
           >
-            Pembelajaran
+            Guru
           </motion.span>
         </div>
 
@@ -231,7 +231,7 @@ export function Splash() {
           className="mt-4 text-xs font-light text-white/68 sm:text-sm"
           style={{ letterSpacing: "0.13em" }}
         >
-          Pengembangan Perangkat Lunak dan Gim
+          Presensi Kehadiran Harian Guru
         </motion.p>
 
         <motion.div variants={fadeUp} className="mt-5">

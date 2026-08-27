@@ -2,18 +2,11 @@ export type StatusAbsensi = "HADIR" | "IZIN" | "SAKIT" | "ALPA";
 export type FilterAbsensi = StatusAbsensi | "PULANG";
 export type AbsenWindow = "HADIR" | "PULANG" | "BOTH" | "CLOSED";
 
-export type Kelas = {
-  id: string;
-  nama: string;
-  waliKelasGuru?: { user: { id: string; nama: string } } | null;
-  _count?: { siswa: number };
-};
-
-export type SiswaAbsensi = {
-  siswaId: string;
+export type GuruAbsensi = {
+  guruId: string;
   userId?: string | null;
   nama: string;
-  nis?: string | null;
+  nip?: string | null;
   fotoProfil?: string | null;
   status: StatusAbsensi | null;
   waktuAbsen?: string | null;
@@ -28,24 +21,20 @@ export type SiswaAbsensi = {
   fotoPulang?: string | null;
 };
 
-export type RekapKelas = {
-  kelasId: string;
-  kelas: Kelas;
+export type RekapGuru = {
   tanggal: string;
   rekap: Record<StatusAbsensi, number>;
   pulangCount: number;
-  siswa: SiswaAbsensi[];
+  guru: GuruAbsensi[];
 };
 
 export type PeriodeLaporan = "mingguan" | "bulanan";
 
 export type LaporanSeringTidakHadirRow = {
-  siswaId: string;
+  guruId: string;
   nama: string | null;
-  nis: string | null;
+  nip: string | null;
   fotoProfil: string | null;
-  kelasId: string;
-  kelasNama: string;
   summary: {
     HADIR: number;
     IZIN: number;
@@ -61,5 +50,5 @@ export type LaporanSeringTidakHadir = {
   tanggalMulai: string;
   tanggalSelesai: string;
   tanggalList: string[];
-  siswa: LaporanSeringTidakHadirRow[];
+  guru: LaporanSeringTidakHadirRow[];
 };

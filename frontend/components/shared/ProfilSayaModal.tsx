@@ -12,12 +12,12 @@ type MeResponse = {
   nama: string;
   email: string | null;
   loginId: string | null;
-  role: "ADMIN" | "GURU" | "SISWA";
+  role: "ADMIN" | "GURU";
   fotoProfil: string | null;
   guru: { id: string; nip: string | null } | null;
 };
 
-const ROLE_LABEL: Record<string, string> = { ADMIN: "Administrator", GURU: "Guru", SISWA: "Siswa" };
+const ROLE_LABEL: Record<string, string> = { ADMIN: "Administrator", GURU: "Guru" };
 const GRADIENT = "#0082FB";
 
 export function ProfilSayaModal({ onClose }: { onClose: () => void }) {

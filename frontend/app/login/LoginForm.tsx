@@ -44,7 +44,7 @@ export function LoginForm() {
 
       if (!res.ok) {
         if (res.status === 401) {
-          setError("NIS/email atau password salah.");
+          setError("Login ID/email atau password salah.");
         } else if (res.status === 502) {
           setError("Tidak dapat terhubung ke server. Coba lagi nanti.");
         } else {
@@ -59,7 +59,7 @@ export function LoginForm() {
         window.location.replace("/change-password");
         return;
       }
-      const role = (data.user?.role as string)?.toLowerCase() ?? "siswa";
+      const role = (data.user?.role as string)?.toLowerCase() ?? "guru";
       window.location.replace(`/${role}/dashboard`);
     } catch {
       setError("Tidak dapat terhubung ke server. Periksa koneksi Anda.");
@@ -77,7 +77,7 @@ export function LoginForm() {
     >
       <motion.div variants={item} className="flex flex-col gap-1.5">
         <label htmlFor="login" className="text-sm font-medium text-black/70">
-          NIS
+          Login ID
         </label>
         <div className="relative">
           <User
@@ -92,7 +92,7 @@ export function LoginForm() {
             required
             value={login}
             onChange={(e) => setLogin(e.target.value)}
-            placeholder="NIS atau email"
+            placeholder="Login ID atau email"
             className="w-full rounded-xl border border-black/10 bg-black/3 px-4 py-3 pl-11 text-sm text-black placeholder:text-black/35 outline-none transition-all focus:border-blue focus:bg-white focus:ring-2 focus:ring-blue/15"
           />
         </div>

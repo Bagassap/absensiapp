@@ -79,11 +79,11 @@ export function LoginCard() {
 
           <div className="relative z-10 sm:mt-8">
             <p className="hidden text-[9.5px] font-semibold uppercase tracking-[0.22em] text-white/45 sm:block">
-              Platform Pendidikan
+              Sistem Kepegawaian
             </p>
 
             <h1 className="mt-0.5 hidden text-[1.75rem] font-bold leading-[1.2] tracking-wide text-white sm:block">
-              Sistem
+              Absensi
               <br />
               <span
                 style={{
@@ -93,11 +93,11 @@ export function LoginCard() {
                   backgroundClip: "text",
                 }}
               >
-                Pembelajaran
+                Guru
               </span>
             </h1>
             <h1 className="text-base font-semibold text-white sm:hidden">
-              Sistem Pembelajaran
+              Absensi Guru
             </h1>
 
             <div
@@ -109,9 +109,9 @@ export function LoginCard() {
             />
 
             <p className="mt-3 hidden text-[11.5px] font-light leading-relaxed text-white/60 sm:block">
-              Pengembangan Perangkat Lunak
+              Presensi Kehadiran
               <br />
-              dan Gim
+              Harian Guru
             </p>
 
             <div className="mt-5 hidden sm:flex sm:justify-center">
@@ -127,13 +127,13 @@ export function LoginCard() {
       <div className="flex flex-1 flex-col justify-center rounded-3xl bg-[#ffffff] px-8 py-10 sm:px-12 sm:py-14">
         <h2 className="text-2xl font-semibold text-black">Selamat Datang</h2>
         <p className="mt-2 text-sm text-black/55">
-          Masuk ke akun Anda untuk mengakses sistem pembelajaran
+          Masuk ke akun Anda untuk mencatat kehadiran harian
         </p>
 
         <LoginForm />
 
         <p className="mt-8 text-center text-xs text-black/35">
-          &copy; {new Date().getFullYear()} LMS PPLG &middot; SMK Ma&apos;arif
+          &copy; {new Date().getFullYear()} Absensi Guru &middot; SMK Ma&apos;arif
           NU 01 Limpung
         </p>
       </div>

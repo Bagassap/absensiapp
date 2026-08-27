@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
   ADMIN: { label: "Admin",  cls: "bg-white/20 text-white" },
   GURU:  { label: "Guru",   cls: "bg-white/20 text-white" },
-  SISWA: { label: "Siswa",  cls: "bg-white/20 text-white" },
 };
 
 // Dibaca eksplisit sebagai jam WIB (Asia/Jakarta) via Intl, bukan getHours()
@@ -39,7 +38,7 @@ export default function GreetingHero({
 }) {
   const { emoji, text } = getGreeting();
   const firstName   = getFirstName(nama);
-  const badge       = ROLE_BADGE[role] ?? ROLE_BADGE.SISWA;
+  const badge       = ROLE_BADGE[role] ?? ROLE_BADGE.GURU;
 
   return (
     <div

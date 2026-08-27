@@ -17,7 +17,6 @@ export async function PATCH(request: Request) {
     newPassword?: string;
     confirmPassword?: string;
     namaKonfirmasi?: string;
-    tanggalLahirKonfirmasi?: string;
   };
   try {
     body = await request.json();

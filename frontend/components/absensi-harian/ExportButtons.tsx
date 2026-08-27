@@ -9,9 +9,9 @@ import { Avatar } from "@/components/shared/Avatar";
 import type { ExportRange, ExportRangeMode } from "./shared";
 import type { UseExportRangeResult } from "./useExportRange";
 import {
-  downloadAbsensiPdf, downloadAbsensiPdfSiswa, downloadAbsensiExcel, downloadAbsensiExcelSiswa,
+  downloadAbsensiPdf, downloadAbsensiPdfGuru, downloadAbsensiExcel, downloadAbsensiExcelGuru,
 } from "./downloadAbsensiPdf";
-import type { SiswaAbsensi } from "./types";
+import type { GuruAbsensi } from "./types";
 
 const RANGE_MODES: { key: ExportRangeMode; label: string }[] = [
   { key: "harian", label: "Per Hari" },
@@ -21,7 +21,7 @@ const RANGE_MODES: { key: ExportRangeMode; label: string }[] = [
 
 const selectCls = "rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 px-3 py-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0082FB]";
 
-/** Per Hari / Per Minggu / Per Bulan tabs + the matching inline picker — same row height in every mode (harian has no extra picker at all; mingguan/bulanan pickers share selectCls with the tabs' py-1.5). Rendered right after the main Tanggal picker, before the download buttons. */
+/** Per Hari / Per Minggu / Per Bulan tabs + the matching inline picker. */
 export function RangeModeToggle({ rangeMode, setRangeMode, weekAnchor, setWeekAnchor, bulan, setBulan, tahun, setTahun, weekRange }: UseExportRangeResult) {
   const currentYear = new Date().getFullYear();
   const yearOptions = [currentYear - 1, currentYear, currentYear + 1];
@@ -60,20 +60,20 @@ export function RangeModeToggle({ rangeMode, setRangeMode, weekAnchor, setWeekAn
   );
 }
 
-type ExportKind = "pdf-kelas" | "pdf-siswa" | "excel-kelas" | "excel-siswa";
+type ExportKind = "pdf-semua" | "pdf-guru" | "excel-semua" | "excel-guru";
 
-function SiswaPickerModal({ siswaList, title, accent, onPick, onClose }: {
-  siswaList: SiswaAbsensi[]; title: string; accent: string;
-  onPick: (s: SiswaAbsensi) => void; onClose: () => void;
+function GuruPickerModal({ guruList, title, accent, onPick, onClose }: {
+  guruList: GuruAbsensi[]; title: string; accent: string;
+  onPick: (g: GuruAbsensi) => void; onClose: () => void;
 }) {
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-    if (!query) return siswaList;
-    return siswaList.filter(
-      (s) => s.nama.toLowerCase().includes(query) || (s.nis ?? "").toLowerCase().includes(query),
+    if (!query) return guruList;
+    return guruList.filter(
+      (g) => g.nama.toLowerCase().includes(query) || (g.nip ?? "").toLowerCase().includes(query),
     );
-  }, [q, siswaList]);
+  }, [q, guruList]);
 
   return (
     <div className="fixed inset-0 z-60 flex items-end justify-center p-0 sm:items-center sm:p-4">
@@ -96,27 +96,27 @@ function SiswaPickerModal({ siswaList, title, accent, onPick, onClose }: {
         <div className="border-b border-slate-100 px-5 py-3 dark:border-slate-700/50">
           <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-600 dark:bg-slate-800">
             <Search size={14} className="text-slate-400 shrink-0" />
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nama atau NIS..."
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nama atau NIP..."
               className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-2">
           {filtered.length === 0 ? (
-            <p className="py-10 text-center text-xs font-semibold text-slate-400">Tidak ada siswa ditemukan</p>
+            <p className="py-10 text-center text-xs font-semibold text-slate-400">Tidak ada guru ditemukan</p>
           ) : (
-            filtered.map((s) => (
-              <button key={s.siswaId} onClick={() => onPick(s)}
+            filtered.map((g) => (
+              <button key={g.guruId} onClick={() => onPick(g)}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
                 <Avatar
-                  src={s.fotoProfil}
-                  nama={s.nama}
+                  src={g.fotoProfil}
+                  nama={g.nama}
                   sizePx={36}
-                  fallbackBg={avatarColor(s.nama)}
+                  fallbackBg={avatarColor(g.nama)}
                   textClassName="text-xs font-bold"
                 />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-slate-700 dark:text-slate-200">{s.nama}</p>
-                  <p className="text-[11px] text-slate-400">NIS: {s.nis ?? "-"}</p>
+                  <p className="truncate text-sm font-bold text-slate-700 dark:text-slate-200">{g.nama}</p>
+                  <p className="text-[11px] text-slate-400">NIP: {g.nip ?? "-"}</p>
                 </div>
               </button>
             ))
@@ -127,36 +127,36 @@ function SiswaPickerModal({ siswaList, title, accent, onPick, onClose }: {
   );
 }
 
-export function ExportButtons({ kelasId, kelasNama, range, siswaList }: {
-  kelasId: string; kelasNama: string; range: ExportRange; siswaList: SiswaAbsensi[];
+export function ExportButtons({ range, guruList }: {
+  range: ExportRange; guruList: GuruAbsensi[];
 }) {
   const toast = useToast();
   const [loadingKind, setLoadingKind] = useState<ExportKind | null>(null);
   const [picker, setPicker] = useState<"pdf" | "excel" | null>(null);
 
-  const disabled = !kelasId || siswaList.length === 0;
+  const disabled = guruList.length === 0;
 
-  async function runKelasExport(kind: "pdf-kelas" | "excel-kelas") {
+  async function runSemuaExport(kind: "pdf-semua" | "excel-semua") {
     if (disabled || loadingKind) return;
     setLoadingKind(kind);
     try {
-      const result = kind === "pdf-kelas"
-        ? await downloadAbsensiPdf({ kelasId, range, kelasNama })
-        : await downloadAbsensiExcel({ kelasId, range, kelasNama });
-      if (!result.ok) toast.error(kind === "pdf-kelas" ? "Gagal membuat PDF" : "Gagal membuat Excel", result.message);
+      const result = kind === "pdf-semua"
+        ? await downloadAbsensiPdf({ range })
+        : await downloadAbsensiExcel({ range });
+      if (!result.ok) toast.error(kind === "pdf-semua" ? "Gagal membuat PDF" : "Gagal membuat Excel", result.message);
     } finally {
       setLoadingKind(null);
     }
   }
 
-  async function runSiswaExport(kind: "pdf-siswa" | "excel-siswa", s: SiswaAbsensi) {
+  async function runGuruExport(kind: "pdf-guru" | "excel-guru", g: GuruAbsensi) {
     setPicker(null);
     setLoadingKind(kind);
     try {
-      const result = kind === "pdf-siswa"
-        ? await downloadAbsensiPdfSiswa({ siswaId: s.siswaId, range, siswaNama: s.nama })
-        : await downloadAbsensiExcelSiswa({ siswaId: s.siswaId, range, siswaNama: s.nama });
-      if (!result.ok) toast.error(kind === "pdf-siswa" ? "Gagal membuat PDF" : "Gagal membuat Excel", result.message);
+      const result = kind === "pdf-guru"
+        ? await downloadAbsensiPdfGuru({ guruId: g.guruId, range, guruNama: g.nama })
+        : await downloadAbsensiExcelGuru({ guruId: g.guruId, range, guruNama: g.nama });
+      if (!result.ok) toast.error(kind === "pdf-guru" ? "Gagal membuat PDF" : "Gagal membuat Excel", result.message);
     } finally {
       setLoadingKind(null);
     }
@@ -168,39 +168,39 @@ export function ExportButtons({ kelasId, kelasNama, range, siswaList }: {
   return (
     <>
       <div className="flex flex-nowrap items-center gap-1.5">
-        <button type="button" onClick={() => runKelasExport("pdf-kelas")} disabled={disabled || !!loadingKind} title="PDF Per Kelas"
+        <button type="button" onClick={() => runSemuaExport("pdf-semua")} disabled={disabled || !!loadingKind} title="PDF Semua Guru"
           className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl border px-1.5 py-1.5 text-[10px] font-bold transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
           style={PDF_STYLE}>
-          {loadingKind === "pdf-kelas" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileText size={12} className="shrink-0" />}
-          <span className="truncate">PDF Kelas</span>
+          {loadingKind === "pdf-semua" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileText size={12} className="shrink-0" />}
+          <span className="truncate">PDF Semua</span>
         </button>
-        <button type="button" onClick={() => setPicker("pdf")} disabled={disabled || !!loadingKind} title="PDF Per Siswa"
+        <button type="button" onClick={() => setPicker("pdf")} disabled={disabled || !!loadingKind} title="PDF Per Guru"
           className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl border px-1.5 py-1.5 text-[10px] font-bold transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
           style={PDF_STYLE}>
-          {loadingKind === "pdf-siswa" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileText size={12} className="shrink-0" />}
-          <span className="truncate">PDF Siswa</span>
+          {loadingKind === "pdf-guru" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileText size={12} className="shrink-0" />}
+          <span className="truncate">PDF Guru</span>
         </button>
-        <button type="button" onClick={() => runKelasExport("excel-kelas")} disabled={disabled || !!loadingKind} title="Excel Per Kelas"
+        <button type="button" onClick={() => runSemuaExport("excel-semua")} disabled={disabled || !!loadingKind} title="Excel Semua Guru"
           className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl border px-1.5 py-1.5 text-[10px] font-bold transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
           style={EXCEL_STYLE}>
-          {loadingKind === "excel-kelas" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileSpreadsheet size={12} className="shrink-0" />}
-          <span className="truncate">Excel Kelas</span>
+          {loadingKind === "excel-semua" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileSpreadsheet size={12} className="shrink-0" />}
+          <span className="truncate">Excel Semua</span>
         </button>
-        <button type="button" onClick={() => setPicker("excel")} disabled={disabled || !!loadingKind} title="Excel Per Siswa"
+        <button type="button" onClick={() => setPicker("excel")} disabled={disabled || !!loadingKind} title="Excel Per Guru"
           className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl border px-1.5 py-1.5 text-[10px] font-bold transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
           style={EXCEL_STYLE}>
-          {loadingKind === "excel-siswa" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileSpreadsheet size={12} className="shrink-0" />}
-          <span className="truncate">Excel Siswa</span>
+          {loadingKind === "excel-guru" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileSpreadsheet size={12} className="shrink-0" />}
+          <span className="truncate">Excel Guru</span>
         </button>
       </div>
 
       <AnimatePresence>
         {picker && (
-          <SiswaPickerModal
-            siswaList={siswaList}
-            title={picker === "pdf" ? "Pilih Siswa — Export PDF" : "Pilih Siswa — Export Excel"}
+          <GuruPickerModal
+            guruList={guruList}
+            title={picker === "pdf" ? "Pilih Guru — Export PDF" : "Pilih Guru — Export Excel"}
             accent={picker === "pdf" ? "#EF4444" : "#00D67F"}
-            onPick={(s) => runSiswaExport(picker === "pdf" ? "pdf-siswa" : "excel-siswa", s)}
+            onPick={(g) => runGuruExport(picker === "pdf" ? "pdf-guru" : "excel-guru", g)}
             onClose={() => setPicker(null)}
           />
         )}

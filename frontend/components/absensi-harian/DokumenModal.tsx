@@ -5,26 +5,27 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, MapPin, Download, Camera, PenTool, ExternalLink,
 } from "lucide-react";
-import type { SiswaAbsensi, StatusAbsensi } from "./types";
+import type { GuruAbsensi, StatusAbsensi } from "./types";
 import { STATUS_CFG, PULANG_CFG, BRAND_GRADIENT, formatTgl, avatarColor, parseLokasi, resolveMediaSrc } from "./shared";
 import { Avatar } from "@/components/shared/Avatar";
 
-export function DokumenModal({ siswa, tanggal, kelas, onClose, source = "hadir" }: {
-  siswa: SiswaAbsensi; tanggal: string; kelas: string; onClose: () => void; source?: "hadir" | "pulang";
+export function DokumenModal({ guru, tanggal, onClose, source = "hadir" }: {
+  guru: GuruAbsensi; tanggal: string; onClose: () => void; source?: "hadir" | "pulang";
 }) {
   const [imgOverlay, setImgOverlay] = useState<string | null>(null);
   const isPulang = source === "pulang";
-  const rawLokasi = isPulang ? siswa.lokasiPulang : siswa.lokasi;
+  const rawLokasi = isPulang ? guru.lokasiPulang : guru.lokasi;
   const lokasi = parseLokasi(rawLokasi);
-  const fotoSrc = resolveMediaSrc(isPulang ? siswa.fotoPulang : siswa.foto);
-  const ttdSrc = (isPulang ? siswa.ttdPulang : siswa.ttd) ?? null;
-  const waktu = isPulang ? siswa.waktuPulang : siswa.waktuAbsen;
-  const catatan = isPulang ? siswa.catatanPulang : siswa.catatan;
-  const status = (siswa.status ?? "HADIR") as StatusAbsensi;
+  const fotoSrc = resolveMediaSrc(isPulang ? guru.fotoPulang : guru.foto);
+  const ttdSrc = (isPulang ? guru.ttdPulang : guru.ttd) ?? null;
+  const waktu = isPulang ? guru.waktuPulang : guru.waktuAbsen;
+  const catatan = isPulang ? guru.catatanPulang : guru.catatan;
+  const status = (guru.status ?? "HADIR") as StatusAbsensi;
   const fotoLabel = !isPulang && (status === "IZIN" || status === "SAKIT") ? "Foto Surat Izin/Sakit" : "Foto Selfie";
   const theme = isPulang ? PULANG_CFG : STATUS_CFG[status];
   const ThemeIcon = theme.icon;
-  const ac = avatarColor(siswa.nama);
+  const ac = avatarColor(guru.nama);
+  const subtitle = guru.nip ? `NIP ${guru.nip}` : "Guru";
 
   return (
     <>
@@ -39,7 +40,7 @@ export function DokumenModal({ siswa, tanggal, kelas, onClose, source = "hadir" 
               className="flex max-h-[85vh] max-w-3xl flex-col items-center gap-4">
               <img src={imgOverlay} alt="Dokumen" className="max-h-[75vh] max-w-full rounded-2xl object-contain shadow-2xl" />
               <div className="flex gap-3">
-                <button onClick={() => { const a = document.createElement("a"); a.href = imgOverlay; a.download = "dok-" + siswa.nama + ".png"; a.click(); }}
+                <button onClick={() => { const a = document.createElement("a"); a.href = imgOverlay; a.download = "dok-" + guru.nama + ".png"; a.click(); }}
                   className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">
                   <Download size={14} /> Download
                 </button>
@@ -72,8 +73,8 @@ export function DokumenModal({ siswa, tanggal, kelas, onClose, source = "hadir" 
             <div className="flex items-center gap-3 px-4 pb-3 pt-10 sm:hidden">
               <div className="relative shrink-0" style={{ boxShadow: "0 0 0 3px rgba(255,255,255,0.25)", borderRadius: "9999px" }}>
                 <Avatar
-                  src={siswa.fotoProfil}
-                  nama={siswa.nama}
+                  src={guru.fotoProfil}
+                  nama={guru.nama}
                   sizePx={44}
                   fallbackBg={ac}
                   textClassName="text-sm font-extrabold"
@@ -83,12 +84,12 @@ export function DokumenModal({ siswa, tanggal, kelas, onClose, source = "hadir" 
                 </div>
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-sm font-extrabold leading-tight text-white">{siswa.nama}</h2>
+                <h2 className="truncate text-sm font-extrabold leading-tight text-white">{guru.nama}</h2>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   <span className="rounded-lg px-2 py-0.5 text-[9px] font-extrabold text-white" style={{ background: "rgba(255,255,255,0.22)" }}>
                     {theme.label}
                   </span>
-                  <span className="text-[10px] text-white/70">{kelas} · {formatTgl(tanggal)}</span>
+                  <span className="text-[10px] text-white/70">{subtitle} · {formatTgl(tanggal)}</span>
                 </div>
               </div>
               <div className="shrink-0 pr-6 text-right">
@@ -105,8 +106,8 @@ export function DokumenModal({ siswa, tanggal, kelas, onClose, source = "hadir" 
             <div className="relative hidden flex-1 flex-col items-center justify-center px-5 pb-8 pt-10 text-center sm:flex">
               <div className="relative" style={{ boxShadow: "0 0 0 4px rgba(255,255,255,0.25),0 12px 24px rgba(0,0,0,0.2)", borderRadius: "9999px" }}>
                 <Avatar
-                  src={siswa.fotoProfil}
-                  nama={siswa.nama}
+                  src={guru.fotoProfil}
+                  nama={guru.nama}
                   sizePx={80}
                   fallbackBg={ac}
                   textClassName="text-xl font-extrabold"
@@ -115,12 +116,12 @@ export function DokumenModal({ siswa, tanggal, kelas, onClose, source = "hadir" 
                   <ThemeIcon size={13} className="text-white" />
                 </div>
               </div>
-              <h2 className="mt-4 text-sm font-extrabold leading-tight text-white">{siswa.nama}</h2>
+              <h2 className="mt-4 text-sm font-extrabold leading-tight text-white">{guru.nama}</h2>
               <div className="mt-2 rounded-lg px-3 py-1 text-xs font-extrabold text-white" style={{ background: "rgba(255,255,255,0.22)" }}>
                 {theme.label}
               </div>
               <div className="mt-1 rounded-lg px-2.5 py-0.5 text-[10px] font-semibold text-white/80" style={{ background: "rgba(255,255,255,0.12)" }}>
-                {kelas}
+                {subtitle}
               </div>
               <div className="my-4 h-px w-full bg-white/20" />
               <div className="w-full text-left space-y-4">

@@ -3,23 +3,20 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PartyPopper, Search, Copy, Check, X, Clock, Info, MinusCircle, AlertCircle, Users } from "lucide-react";
-import { avatarColorFor } from "@/components/data-siswa/shared";
-import { PULANG_CFG, DASHBOARD_GRADIENTS, DASHBOARD_ACCENT, DASHBOARD_PASTEL } from "./shared";
+import { avatarColor, PULANG_CFG, DASHBOARD_GRADIENTS, DASHBOARD_ACCENT, DASHBOARD_PASTEL } from "./shared";
 import { Avatar } from "@/components/shared/Avatar";
 import { useToast } from "@/components/shared/ToastSystem";
-import type { SiswaAbsensi } from "./types";
+import type { GuruAbsensi } from "./types";
 
 // waktuAbsen is stored as an already-formatted "HH.mm" clock string (set via
-// toLocaleTimeString at check-in time, see app/siswa/absensi-harian/page.tsx),
-// not an ISO datetime — re-parsing it with `new Date()` produces Invalid Date.
+// toLocaleTimeString at check-in time), not an ISO datetime — re-parsing it
+// with `new Date()` produces Invalid Date.
 function formatJam(waktu?: string | null) {
   return waktu && waktu.trim() ? waktu : "-";
 }
 
-// Small white stat-card trigger, matching the reference's "Trading Fees"
-// cards: gradient circular icon badge on the left, big count + small label
-// on the right. Still clickable (opens the same DetailModal as before) —
-// only the visual shell changed, not the underlying interaction.
+// Small white stat-card trigger: gradient circular icon badge on the left,
+// big count + small label on the right.
 function StatTrigger({
   title, icon: Icon, gradient, accent, items, total, hint, onOpen,
 }: {
@@ -27,7 +24,7 @@ function StatTrigger({
   icon: React.ElementType;
   gradient: string;
   accent: string;
-  items: SiswaAbsensi[];
+  items: GuruAbsensi[];
   total: number;
   hint: string;
   onOpen: () => void;
@@ -47,7 +44,7 @@ function StatTrigger({
         </div>
         <p className="truncate text-[11px] font-semibold text-slate-400 dark:text-slate-500">{title}</p>
         <p className="mt-0.5 truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">
-          dari {total} siswa hari ini
+          dari {total} guru hari ini
         </p>
         <div className="mt-1.5 h-1 w-full rounded-full bg-slate-100 dark:bg-slate-700">
           <div className="h-1 rounded-full transition-all" style={{ width: `${pct}%`, background: gradient }} />
@@ -66,7 +63,7 @@ function DetailModal({
   headerBg: string;
   iconColor: string;
   emptyMessage: string;
-  items: SiswaAbsensi[];
+  items: GuruAbsensi[];
   mode: "hadir" | "pulang";
   onClose: () => void;
 }) {
@@ -77,11 +74,11 @@ function DetailModal({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
-    return items.filter((s) => s.nama.toLowerCase().includes(q) || (s.nis ?? "").toLowerCase().includes(q));
+    return items.filter((g) => g.nama.toLowerCase().includes(q) || (g.nip ?? "").toLowerCase().includes(q));
   }, [items, query]);
 
   async function copyNames() {
-    const text = items.map((s, i) => `${i + 1}. ${s.nama}${s.nis ? ` (${s.nis})` : ""}`).join("\n");
+    const text = items.map((g, i) => `${i + 1}. ${g.nama}${g.nip ? ` (${g.nip})` : ""}`).join("\n");
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -107,7 +104,7 @@ function DetailModal({
             <div className="min-w-0">
               <p className="truncate text-sm font-extrabold" style={{ color: iconColor }}>{title}</p>
               <p className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
-                <Users size={10} /> {items.length} siswa dalam daftar ini
+                <Users size={10} /> {items.length} guru dalam daftar ini
               </p>
             </div>
           </div>
@@ -132,7 +129,7 @@ function DetailModal({
             <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
               <div className="relative flex-1">
                 <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama / NIS..." autoFocus
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama / NIP..." autoFocus
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-2 text-xs font-semibold text-slate-600 placeholder:text-slate-400 focus:outline-none focus:ring-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                   style={{ "--tw-ring-color": iconColor } as React.CSSProperties} />
               </div>
@@ -147,22 +144,22 @@ function DetailModal({
               <p className="py-8 text-center text-xs font-semibold text-slate-400">Tidak ada yang cocok dengan &ldquo;{query}&rdquo;</p>
             ) : (
               <div className="thin-scrollbar flex-1 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-700">
-                {filtered.map((s) => (
-                  <div key={s.siswaId} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
+                {filtered.map((g) => (
+                  <div key={g.guruId} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
                     <Avatar
-                      src={s.fotoProfil}
-                      nama={s.nama}
+                      src={g.fotoProfil}
+                      nama={g.nama}
                       sizePx={34}
-                      fallbackBg={avatarColorFor(s.nama)}
+                      fallbackBg={avatarColor(g.nama)}
                       textClassName="text-[10px] font-extrabold"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{s.nama}</p>
+                      <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{g.nama}</p>
                       {mode === "pulang" ? (
                         <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                          <Clock size={10} className="shrink-0" /> Hadir pukul {formatJam(s.waktuAbsen)}
+                          <Clock size={10} className="shrink-0" /> Hadir pukul {formatJam(g.waktuAbsen)}
                         </p>
-                      ) : s.status === "ALPA" ? (
+                      ) : g.status === "ALPA" ? (
                         <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] font-medium text-red-400">
                           <MinusCircle size={10} className="shrink-0" /> Ditandai alpa
                         </p>
@@ -173,7 +170,7 @@ function DetailModal({
                       )}
                     </div>
                     <span className="shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: headerBg, color: iconColor }}>
-                      {s.nis ?? "—"}
+                      {g.nip ?? "—"}
                     </span>
                   </div>
                 ))}
@@ -186,13 +183,13 @@ function DetailModal({
   );
 }
 
-export function BelumAbsenPanel({ siswaList }: { siswaList: SiswaAbsensi[] }) {
+export function BelumAbsenPanel({ guruList }: { guruList: GuruAbsensi[] }) {
   const [activeModal, setActiveModal] = useState<"hadir" | "pulang" | null>(null);
 
-  const belumHadir = siswaList.filter((s) => !s.status || s.status === "ALPA");
-  const belumPulang = siswaList.filter((s) => !s.waktuPulang);
+  const belumHadir = guruList.filter((g) => !g.status || g.status === "ALPA");
+  const belumPulang = guruList.filter((g) => !g.waktuPulang);
   const hadirIdx = 3; // biru terang
-  const pulangIdx = 2; // red — indeks 1 (lime) dihindari karena badge ikonnya teks putih tetap
+  const pulangIdx = 2; // red
 
   return (
     <>
@@ -203,7 +200,7 @@ export function BelumAbsenPanel({ siswaList }: { siswaList: SiswaAbsensi[] }) {
           gradient={DASHBOARD_GRADIENTS[hadirIdx]}
           accent={DASHBOARD_ACCENT[hadirIdx]}
           items={belumHadir}
-          total={siswaList.length}
+          total={guruList.length}
           hint="Perlu tindak lanjut segera →"
           onOpen={() => setActiveModal("hadir")}
         />
@@ -213,7 +210,7 @@ export function BelumAbsenPanel({ siswaList }: { siswaList: SiswaAbsensi[] }) {
           gradient={DASHBOARD_GRADIENTS[pulangIdx]}
           accent={DASHBOARD_ACCENT[pulangIdx]}
           items={belumPulang}
-          total={siswaList.length}
+          total={guruList.length}
           hint="Klik untuk kirim pengingat →"
           onOpen={() => setActiveModal("pulang")}
         />
@@ -222,11 +219,11 @@ export function BelumAbsenPanel({ siswaList }: { siswaList: SiswaAbsensi[] }) {
       <AnimatePresence>
         {activeModal === "hadir" && (
           <DetailModal
-            title="Siswa Belum Absen Hadir"
+            title="Guru Belum Absen Hadir"
             icon={Clock}
             headerBg={DASHBOARD_PASTEL[hadirIdx]}
             iconColor={DASHBOARD_ACCENT[hadirIdx]}
-            emptyMessage="Semua siswa sudah absen hadir!"
+            emptyMessage="Semua guru sudah absen hadir!"
             items={belumHadir}
             mode="hadir"
             onClose={() => setActiveModal(null)}
@@ -234,11 +231,11 @@ export function BelumAbsenPanel({ siswaList }: { siswaList: SiswaAbsensi[] }) {
         )}
         {activeModal === "pulang" && (
           <DetailModal
-            title="Siswa Belum Absen Pulang"
+            title="Guru Belum Absen Pulang"
             icon={PULANG_CFG.icon}
             headerBg={DASHBOARD_PASTEL[pulangIdx]}
             iconColor={DASHBOARD_ACCENT[pulangIdx]}
-            emptyMessage="Semua siswa sudah absen pulang!"
+            emptyMessage="Semua guru sudah absen pulang!"
             items={belumPulang}
             mode="pulang"
             onClose={() => setActiveModal(null)}

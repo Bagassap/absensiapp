@@ -17,13 +17,11 @@ async function verifyJWT(token: string): Promise<JWTPayload | null> {
 const ROLE_DASHBOARD: Record<string, string> = {
   ADMIN: "/admin/dashboard",
   GURU:  "/guru/dashboard",
-  SISWA: "/siswa/dashboard",
 };
 
 const ROLE_PREFIX: Record<string, string> = {
   ADMIN: "/admin",
   GURU:  "/guru",
-  SISWA: "/siswa",
 };
 
 export async function middleware(request: NextRequest) {
@@ -33,7 +31,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname === "/login") {
     if (payload) {
-      const dest = ROLE_DASHBOARD[payload.role] ?? "/siswa/dashboard";
+      const dest = ROLE_DASHBOARD[payload.role] ?? "/guru/dashboard";
       return NextResponse.redirect(new URL(dest, request.url));
     }
     return NextResponse.next();
@@ -41,7 +39,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname === "/dashboard") {
     if (!payload) return NextResponse.redirect(new URL("/login", request.url));
-    const dest = ROLE_DASHBOARD[payload.role] ?? "/siswa/dashboard";
+    const dest = ROLE_DASHBOARD[payload.role] ?? "/guru/dashboard";
     return NextResponse.redirect(new URL(dest, request.url));
   }
 
@@ -57,7 +55,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname === "/change-password") {
     if (impersonating || !payload.mustChangePassword) {
-      const dest = ROLE_DASHBOARD[payload.role] ?? "/siswa/dashboard";
+      const dest = ROLE_DASHBOARD[payload.role] ?? "/guru/dashboard";
       return NextResponse.redirect(new URL(dest, request.url));
     }
     return NextResponse.next();
@@ -67,21 +65,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/change-password", request.url));
   }
 
-  if (pathname === "/lengkapi-profil") {
-    if (payload.role !== "SISWA" || impersonating || payload.profileCompleted) {
-      const dest = ROLE_DASHBOARD[payload.role] ?? "/siswa/dashboard";
-      return NextResponse.redirect(new URL(dest, request.url));
-    }
-    return NextResponse.next();
-  }
-
-  if (!impersonating && payload.role === "SISWA" && !payload.profileCompleted) {
-    return NextResponse.redirect(new URL("/lengkapi-profil", request.url));
-  }
-
   if (pathname === "/lengkapi-foto-profil") {
     if (impersonating || payload.hasFotoProfil) {
-      const dest = ROLE_DASHBOARD[payload.role] ?? "/siswa/dashboard";
+      const dest = ROLE_DASHBOARD[payload.role] ?? "/guru/dashboard";
       return NextResponse.redirect(new URL(dest, request.url));
     }
     return NextResponse.next();
@@ -93,7 +79,7 @@ export async function middleware(request: NextRequest) {
 
   const expected = ROLE_PREFIX[payload.role];
   if (expected && !pathname.startsWith(expected)) {
-    const dest = ROLE_DASHBOARD[payload.role] ?? "/siswa/dashboard";
+    const dest = ROLE_DASHBOARD[payload.role] ?? "/guru/dashboard";
     return NextResponse.redirect(new URL(dest, request.url));
   }
 
@@ -105,10 +91,8 @@ export const config = {
     "/login",
     "/dashboard",
     "/change-password",
-    "/lengkapi-profil",
     "/lengkapi-foto-profil",
     "/admin/:path*",
     "/guru/:path*",
-    "/siswa/:path*",
   ],
 };

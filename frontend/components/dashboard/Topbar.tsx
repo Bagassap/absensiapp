@@ -5,8 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu, Search, Sun, Moon, Bell, ChevronDown, LogOut, X,
-  LayoutDashboard, Calendar, Users, FileText, Briefcase,
-  MessageSquare, UserCircle, CheckCircle2, Info, AlertTriangle,
+  LayoutDashboard, UserCircle, CheckCircle2, Info, AlertTriangle,
   CheckCheck, Clock,
 } from "lucide-react";
 import type { UserPayload } from "@/lib/auth";
@@ -17,22 +16,9 @@ import { LiveClock } from "@/components/shared/LiveClock";
 
 
 const PAGE_TITLES: Record<string, [string, string]> = {
-  dashboard:      ["Dashboard",          "Ringkasan aktivitas Anda"],
-  "absensi-harian": ["Absensi Harian",   "Presensi kehadiran harian siswa"],
-  pengumuman:     ["Pengumuman",         "Informasi dan pengumuman terkini"],
-  "data-siswa":   ["Data Siswa",         "Kelola data seluruh siswa"],
-  profil:         ["Profil Saya",        "Informasi dan pengaturan akun"],
-  penempatan:     ["Penempatan PKL",     "Data penempatan PKL siswa"],
-  absensi:        ["Absensi",            "Data kehadiran"],
-  monitoring:     ["Monitoring PKL",     "Pantau perkembangan PKL siswa"],
-  rekap:          ["Rekap & Laporan",    "Rekapitulasi dan laporan data PKL"],
-  jadwal:         ["Jadwal UKK",         "Jadwal ujian kompetensi keahlian"],
-  soal:           ["Soal UKK",           "Berkas soal ujian kompetensi"],
-  penilaian:      ["Penilaian UKK",      "Data nilai ujian kompetensi"],
-  "nilai-saya":   ["Nilai Saya",         "Hasil ujian kompetensi Anda"],
-  magang:         ["PKL",                "Program praktik kerja lapangan"],
-  "ujian-ukk":    ["UKK",               "Ujian Kompetensi Keahlian"],
-  "jadwal-soal":  ["UKK",   "Kelola jadwal, soal, dan pantau pengumpulan siswa"],
+  dashboard:        ["Dashboard",       "Ringkasan aktivitas Anda"],
+  "absensi-harian": ["Absensi Harian",  "Presensi kehadiran harian guru"],
+  profil:           ["Profil Saya",     "Informasi dan pengaturan akun"],
 };
 
 function getPageInfo(pathname: string) {
@@ -58,31 +44,14 @@ type SearchItem = {
 
 const SEARCH_ITEMS: SearchItem[] = [
   { href: "/admin/dashboard",            label: "Dashboard",          desc: "Ringkasan aktivitas",           icon: LayoutDashboard, roles: ["ADMIN"] },
-  { href: "/admin/absensi-harian",       label: "Absensi Harian",     desc: "Pantau absensi harian siswa",   icon: CheckCircle2,    roles: ["ADMIN"] },
-  { href: "/admin/pengumuman",           label: "Pengumuman",         desc: "Kelola pengumuman sekolah",     icon: MessageSquare,   roles: ["ADMIN"] },
-  { href: "/admin/data-siswa",           label: "Data Siswa",         desc: "Kelola data siswa",             icon: Users,           roles: ["ADMIN"] },
-  { href: "/admin/magang/penempatan",    label: "Penempatan PKL",     desc: "Data penempatan PKL",           icon: Briefcase,       roles: ["ADMIN"] },
-  { href: "/admin/magang/absensi",       label: "Absensi PKL",        desc: "Data kehadiran PKL",            icon: CheckCircle2,    roles: ["ADMIN"] },
-  { href: "/admin/magang/monitoring",    label: "Monitoring PKL",     desc: "Pantau perkembangan PKL",       icon: Briefcase,       roles: ["ADMIN"] },
-  { href: "/admin/magang/rekap",         label: "Rekap & Laporan",    desc: "Rekapitulasi PKL",              icon: FileText,        roles: ["ADMIN"] },
-  { href: "/admin/ujian-ukk/jadwal",     label: "Jadwal UKK",         desc: "Jadwal ujian kompetensi",       icon: Calendar,        roles: ["ADMIN"] },
-  { href: "/admin/ujian-ukk/soal",       label: "Soal UKK",           desc: "Berkas soal ujian",             icon: FileText,        roles: ["ADMIN"] },
+  { href: "/admin/absensi-harian",       label: "Absensi Harian",     desc: "Pantau absensi harian guru",    icon: CheckCircle2,    roles: ["ADMIN"] },
   { href: "/guru/dashboard",             label: "Dashboard",          desc: "Ringkasan aktivitas",           icon: LayoutDashboard, roles: ["GURU"] },
-  { href: "/guru/absensi-harian",        label: "Absensi Harian",     desc: "Absensi kelas wali Anda",       icon: CheckCircle2,    roles: ["GURU"] },
-  { href: "/guru/pengumuman",            label: "Pengumuman",         desc: "Pengumuman sekolah",            icon: MessageSquare,   roles: ["GURU"] },
-  { href: "/guru/data-siswa",            label: "Data Siswa",         desc: "Data siswa",                    icon: Users,           roles: ["GURU"] },
-  { href: "/guru/magang/absensi",        label: "Absensi PKL",        desc: "Data kehadiran PKL",            icon: CheckCircle2,    roles: ["GURU"] },
-  { href: "/siswa/dashboard",            label: "Dashboard",          desc: "Ringkasan aktivitas",           icon: LayoutDashboard, roles: ["SISWA"] },
-  { href: "/siswa/absensi-harian",       label: "Absensi Harian",     desc: "Presensi kehadiran harian",     icon: CheckCircle2,    roles: ["SISWA"] },
-  { href: "/siswa/pengumuman",           label: "Pengumuman",         desc: "Pengumuman sekolah",            icon: MessageSquare,   roles: ["SISWA"] },
-  { href: "/siswa/profil",               label: "Profil Saya",        desc: "Informasi dan pengaturan akun", icon: UserCircle,      roles: ["SISWA"] },
-  { href: "/siswa/magang/absensi",       label: "Absensi PKL",        desc: "Data kehadiran PKL",            icon: CheckCircle2,    roles: ["SISWA"] },
-  { href: "/siswa/ujian-ukk/nilai-saya", label: "Nilai Saya",         desc: "Hasil ujian kompetensi",        icon: FileText,        roles: ["SISWA"] },
+  { href: "/guru/absensi-harian",        label: "Absensi Harian",     desc: "Absensi harian Anda",           icon: CheckCircle2,    roles: ["GURU"] },
 ];
 
 
 type NotifType = "info" | "success" | "warning" | "error";
-type ApiNotifType = "PENGUMUMAN" | "ABSENSI" | "TUGAS" | "MAGANG" | "UKK" | "SISTEM";
+type ApiNotifType = "ABSENSI" | "SISTEM";
 type ApiNotification = {
   id: string;
   title: string;
@@ -94,12 +63,8 @@ type ApiNotification = {
 };
 
 const NOTIF_TYPE_STYLE: Record<ApiNotifType, NotifType> = {
-  PENGUMUMAN: "info",
-  ABSENSI:    "success",
-  TUGAS:      "warning",
-  MAGANG:     "info",
-  UKK:        "warning",
-  SISTEM:     "error",
+  ABSENSI: "success",
+  SISTEM:  "error",
 };
 
 const NOTIF_STYLE: Record<NotifType, { bg: string; color: string }> = {
@@ -116,7 +81,7 @@ const NOTIF_ICON: Record<NotifType, React.ComponentType<{ size?: number; style?:
   error:   AlertTriangle,
 };
 
-const ROLE_LABEL: Record<string, string> = { ADMIN: "Administrator", GURU: "Guru", SISWA: "Siswa" };
+const ROLE_LABEL: Record<string, string> = { ADMIN: "Administrator", GURU: "Guru" };
 
 
 export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: () => void }) {
@@ -195,10 +160,6 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
   const [unreadCount,    setUnreadCount]    = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  // Jumlah permintaan reset password yang masih menunggu (dipindah dari
-  // header halaman Manajemen Password ke Topbar) — hanya relevan untuk Admin.
-  const [pendingResetCount, setPendingResetCount] = useState(0);
-
   // A 401 here means the session cookie is gone or no longer verifiable (expired,
   // or signed under a JWT_SECRET that's since been rotated) — bounce to /login
   // instead of leaving the badge/dropdown silently and permanently empty with
@@ -228,28 +189,11 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
     } finally { setNotifLoading(false); }
   }
 
-  async function fetchPendingResetCount() {
-    try {
-      const res = await fetch("/api/users/password-reset-requests", { cache: "no-store" });
-      if (!res.ok) return;
-      const data = await res.json();
-      const list: { status: string }[] = Array.isArray(data) ? data : [];
-      setPendingResetCount(list.filter((r) => r.status === "PENDING").length);
-    } catch {  }
-  }
-
   useEffect(() => {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30_000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (user.role !== "ADMIN") return;
-    fetchPendingResetCount();
-    const interval = setInterval(fetchPendingResetCount, 30_000);
-    return () => clearInterval(interval);
-  }, [user.role]);
 
   useEffect(() => {
     if (notifOpen) fetchNotifications();
@@ -365,21 +309,6 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
               <Moon size={13} />
             </button>
           </div>
-
-          {user.role === "ADMIN" && (
-            <button
-              onClick={() => router.push("/admin/manajemen-password")}
-              title="Permintaan reset password"
-              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:bg-slate-700/50 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
-            >
-              <Clock size={16} />
-              {pendingResetCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
-                  {pendingResetCount > 9 ? "9+" : pendingResetCount}
-                </span>
-              )}
-            </button>
-          )}
 
           <div className="relative" ref={notifRef}>
             <button
@@ -510,8 +439,7 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
                   <button
                     onClick={() => {
                       setDropdownOpen(false);
-                      if (user.role === "SISWA") router.push("/siswa/profil");
-                      else setProfilOpen(true);
+                      setProfilOpen(true);
                     }}
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-700/50"
                   >
