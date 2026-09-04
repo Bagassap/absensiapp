@@ -90,3 +90,12 @@ export function addDaysUTC(dateStr: string, deltaDays: number): string {
   d.setUTCDate(d.getUTCDate() + deltaDays);
   return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
 }
+
+const HARI_NAMES = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
+
+// Indonesian day name for a yyyy-mm-dd string (UTC-anchored, same convention
+// as the other helpers here) — used to look up JadwalPiket.
+export function hariFor(dateStr: string): string {
+  const dow = parseIsoDateUTC(dateStr).getUTCDay();
+  return HARI_NAMES[dow];
+}

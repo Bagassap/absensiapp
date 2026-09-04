@@ -18,7 +18,7 @@ export class DashboardController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles(Role.GURU)
+  @Roles(Role.ADMIN, Role.GURU)
   @Get('guru')
   getGuru(@Request() req: any) {
     return this.service.getGuruStats(req.user.id);

@@ -67,6 +67,12 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('refresh')
+  refreshToken(@Request() req: any) {
+    return this.authService.refreshToken(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch('foto-profil')
   @UseInterceptors(FileInterceptor('foto', { storage: fotoProfilStorage, ...imageUploadOptions }))
   async setFotoProfil(@Request() req: any, @UploadedFile() foto?: Express.Multer.File) {

@@ -1,62 +1,85 @@
-import { IsString, IsOptional, IsIn, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsInt, Min, Max, IsNotEmpty, IsIn } from 'class-validator';
 
-export class AbsenSendiriHarianDto {
+export class CreateKegiatanDto {
   @IsString()
-  @IsOptional()
-  @IsIn(['HADIR', 'PULANG', 'IZIN', 'SAKIT'])
-  tipe?: 'HADIR' | 'PULANG' | 'IZIN' | 'SAKIT';
-
-  @IsString()
-  @IsOptional()
-  lokasi?: string;
+  @IsNotEmpty()
+  nama!: string;
 
   @IsString()
-  @IsOptional()
-  waktuAbsen?: string;
-
-  @IsString()
-  @IsOptional()
-  ttd?: string;
-
-  @IsString()
-  @IsOptional()
-  catatan?: string;
-}
-
-export class KirimPengingatDto {
-  @IsString()
-  tanggal!: string;
-}
-
-export class UpsertJadwalOverrideDto {
-  @IsString()
+  @IsNotEmpty()
   tanggal!: string;
 
   @IsInt()
   @Min(0)
   @Max(1439)
-  @IsOptional()
-  hadirStartMinutes?: number;
+  jamMulai!: number;
 
   @IsInt()
   @Min(0)
   @Max(1439)
-  @IsOptional()
-  hadirEndMinutes?: number;
-
-  @IsInt()
-  @Min(0)
-  @Max(1439)
-  @IsOptional()
-  pulangStartMinutes?: number;
-
-  @IsInt()
-  @Min(0)
-  @Max(1439)
-  @IsOptional()
-  pulangEndMinutes?: number;
+  jamSelesai!: number;
 
   @IsString()
   @IsOptional()
   keterangan?: string;
+}
+
+export class UpdateKegiatanDto {
+  @IsString()
+  @IsOptional()
+  nama?: string;
+
+  // Tanggal pelaksanaan boleh diedit admin lepas dari kapan kegiatan itu
+  // dibuat — mis. kegiatan tanggal 9 dibuat sambil admin sedang melihat
+  // tanggal 6/7.
+  @IsString()
+  @IsOptional()
+  tanggal?: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  @IsOptional()
+  jamMulai?: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  @IsOptional()
+  jamSelesai?: number;
+
+  @IsString()
+  @IsOptional()
+  keterangan?: string;
+}
+
+export class AbsenKegiatanDto {
+  @IsString()
+  @IsNotEmpty()
+  kegiatanId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  lokasi!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  ttd!: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['HADIR', 'IZIN'])
+  status?: 'HADIR' | 'IZIN';
+}
+
+export class KirimPengingatDto {
+  @IsString()
+  @IsNotEmpty()
+  kegiatanId!: string;
+}
+
+export class VerifikasiAbsensiDto {
+  @IsOptional()
+  @IsString()
+  catatan?: string;
 }

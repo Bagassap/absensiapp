@@ -11,7 +11,8 @@ import type { UseExportRangeResult } from "./useExportRange";
 import {
   downloadAbsensiPdf, downloadAbsensiPdfGuru, downloadAbsensiExcel, downloadAbsensiExcelGuru,
 } from "./downloadAbsensiPdf";
-import type { GuruAbsensi } from "./types";
+
+type GuruBasic = { guruId: string; nama: string; nip: string | null; fotoProfil: string | null };
 
 const RANGE_MODES: { key: ExportRangeMode; label: string }[] = [
   { key: "harian", label: "Per Hari" },
@@ -19,7 +20,7 @@ const RANGE_MODES: { key: ExportRangeMode; label: string }[] = [
   { key: "bulanan", label: "Per Bulan" },
 ];
 
-const selectCls = "rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 px-3 py-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0082FB]";
+const selectCls = "rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 px-3 py-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#00C853]";
 
 /** Per Hari / Per Minggu / Per Bulan tabs + the matching inline picker. */
 export function RangeModeToggle({ rangeMode, setRangeMode, weekAnchor, setWeekAnchor, bulan, setBulan, tahun, setTahun, weekRange }: UseExportRangeResult) {
@@ -33,7 +34,7 @@ export function RangeModeToggle({ rangeMode, setRangeMode, weekAnchor, setWeekAn
           <button key={m.key} type="button" onClick={() => setRangeMode(m.key)}
             className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition-colors ${
               rangeMode === m.key
-                ? "bg-[#0082FB] text-white shadow-sm"
+                ? "bg-[#00C853] text-white shadow-sm"
                 : "text-slate-500 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800"
             }`}>
             {m.label}
@@ -63,8 +64,8 @@ export function RangeModeToggle({ rangeMode, setRangeMode, weekAnchor, setWeekAn
 type ExportKind = "pdf-semua" | "pdf-guru" | "excel-semua" | "excel-guru";
 
 function GuruPickerModal({ guruList, title, accent, onPick, onClose }: {
-  guruList: GuruAbsensi[]; title: string; accent: string;
-  onPick: (g: GuruAbsensi) => void; onClose: () => void;
+  guruList: GuruBasic[]; title: string; accent: string;
+  onPick: (g: GuruBasic) => void; onClose: () => void;
 }) {
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
@@ -128,7 +129,7 @@ function GuruPickerModal({ guruList, title, accent, onPick, onClose }: {
 }
 
 export function ExportButtons({ range, guruList }: {
-  range: ExportRange; guruList: GuruAbsensi[];
+  range: ExportRange; guruList: GuruBasic[];
 }) {
   const toast = useToast();
   const [loadingKind, setLoadingKind] = useState<ExportKind | null>(null);
@@ -149,7 +150,7 @@ export function ExportButtons({ range, guruList }: {
     }
   }
 
-  async function runGuruExport(kind: "pdf-guru" | "excel-guru", g: GuruAbsensi) {
+  async function runGuruExport(kind: "pdf-guru" | "excel-guru", g: GuruBasic) {
     setPicker(null);
     setLoadingKind(kind);
     try {

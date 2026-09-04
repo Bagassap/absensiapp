@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import { Eye, EyeOff, Loader2, User, Lock } from "lucide-react";
 
@@ -44,7 +43,7 @@ export function LoginForm() {
 
       if (!res.ok) {
         if (res.status === 401) {
-          setError("Login ID/email atau password salah.");
+          setError("NPY atau password salah.");
         } else if (res.status === 502) {
           setError("Tidak dapat terhubung ke server. Coba lagi nanti.");
         } else {
@@ -55,12 +54,8 @@ export function LoginForm() {
       }
 
       sessionStorage.setItem("lms_session", "1");
-      if (data.user?.mustChangePassword) {
-        window.location.replace("/change-password");
-        return;
-      }
       const role = (data.user?.role as string)?.toLowerCase() ?? "guru";
-      window.location.replace(`/${role}/dashboard`);
+      window.location.replace(role === "admin" ? "/admin/dashboard" : "/guru/absensi-harian");
     } catch {
       setError("Tidak dapat terhubung ke server. Periksa koneksi Anda.");
       setLoading(false);
@@ -77,7 +72,7 @@ export function LoginForm() {
     >
       <motion.div variants={item} className="flex flex-col gap-1.5">
         <label htmlFor="login" className="text-sm font-medium text-black/70">
-          Login ID
+          NPY
         </label>
         <div className="relative">
           <User
@@ -92,7 +87,7 @@ export function LoginForm() {
             required
             value={login}
             onChange={(e) => setLogin(e.target.value)}
-            placeholder="Login ID atau email"
+            placeholder="Masukkan NPY"
             className="w-full rounded-xl border border-black/10 bg-black/3 px-4 py-3 pl-11 text-sm text-black placeholder:text-black/35 outline-none transition-all focus:border-blue focus:bg-white focus:ring-2 focus:ring-blue/15"
           />
         </div>
@@ -135,7 +130,7 @@ export function LoginForm() {
         <motion.p
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-lg border-l-4 border-l-[#EF4444] bg-[#1C2B33] px-3 py-2 text-sm font-medium text-white"
+          className="rounded-lg border-l-4 border-l-[#EF4444] bg-[#013920] px-3 py-2 text-sm font-medium text-white"
         >
           {error}
         </motion.p>
@@ -147,8 +142,8 @@ export function LoginForm() {
         disabled={loading}
         whileHover={!loading ? { scale: 1.02 } : undefined}
         whileTap={!loading ? { scale: 0.98 } : undefined}
-        className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(0,130,251,0.55)] transition-all hover:shadow-[0_14px_40px_-8px_rgba(0,130,251,0.70)] hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-70"
-        style={{ background: "#0082FB" }}
+        className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(0, 200, 83,0.55)] transition-all hover:shadow-[0_14px_40px_-8px_rgba(0, 200, 83,0.70)] hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-70"
+        style={{ background: "#00C853" }}
       >
         {loading ? (
           <>
@@ -159,15 +154,6 @@ export function LoginForm() {
           "Masuk"
         )}
       </motion.button>
-
-      <motion.div variants={item} className="text-center">
-        <Link
-          href="/lupa-password"
-          className="text-sm text-black/40 transition-colors hover:text-black/70"
-        >
-          Lupa Password?
-        </Link>
-      </motion.div>
     </motion.form>
   );
 }

@@ -29,11 +29,9 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
       setError("Format file harus JPG, PNG, atau WEBP.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Ukuran file maksimal 5MB.");
-      return;
-    }
-
+    // Sengaja tanpa batas ukuran — getCroppedImg() selalu mengompres ke
+    // ≤1MB sebelum diunggah, jadi foto galeri HP yang aslinya belasan MB
+    // tidak perlu ditolak lebih dulu di sini.
     setError(null);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
@@ -79,7 +77,7 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
       >
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
         <motion.div
-          className="relative z-10 w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#1C2B33]"
+          className="relative z-10 w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
           initial={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.92, opacity: 0 }}
@@ -106,7 +104,6 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
               ref={inputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              capture="user"
               className="hidden"
               onChange={handleFile}
             />
@@ -122,7 +119,7 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-black/80">Pilih foto baru</p>
-                  <p className="mt-1 text-xs text-black/45">JPG, PNG, atau WEBP — maksimal 5MB</p>
+                  <p className="mt-1 text-xs text-black/45">JPG, PNG, atau WEBP — otomatis dikompres</p>
                 </div>
               </button>
             ) : (
@@ -145,7 +142,7 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
                   <input
                     type="range" min={1} max={3} step={0.01} value={zoom}
                     onChange={(e) => setZoom(Number(e.target.value))}
-                    className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-black/10 accent-[#0082FB]"
+                    className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-black/10 accent-[#00C853]"
                   />
                 </div>
                 <button

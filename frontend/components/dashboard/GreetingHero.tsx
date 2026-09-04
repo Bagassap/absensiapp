@@ -43,7 +43,7 @@ export default function GreetingHero({
   return (
     <div
       className="relative overflow-hidden rounded-3xl px-6 py-7 md:px-8 md:py-8"
-      style={{ background: "#0082FB" }}
+      style={{ background: "#013920" }}
     >
       <div className="pointer-events-none absolute -right-10 -top-10 h-60 w-60 rounded-full bg-white/10" />
       <div className="pointer-events-none absolute -bottom-14 right-28 h-52 w-52 rounded-full bg-white/6" />

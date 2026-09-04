@@ -60,5 +60,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Uploaded files (runtime data)
 /uploads
 
-# CSV data containing plaintext passwords/PII — transfer manually (scp), never via git
+# CSV/XLSX data containing plaintext passwords/PII — transfer manually (scp), never via git
 /csv/*.csv
+/csv/*.xlsx

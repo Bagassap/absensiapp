@@ -70,10 +70,10 @@ export function LupaPasswordForm() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mt-8 flex flex-col items-center gap-4 rounded-2xl border border-[#C3F84A]/15 bg-[#C3F84A]/[0.04] px-6 py-8 text-center"
+        className="mt-8 flex flex-col items-center gap-4 rounded-2xl border border-[#00C853]/15 bg-[#00C853]/[0.04] px-6 py-8 text-center"
       >
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F1F5F8]">
-          <Clock size={28} className="text-[#C3F84A]" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF7E4]">
+          <Clock size={28} className="text-black" />
         </div>
         <p className="text-sm font-semibold text-black/80">
           Tunggu Konfirmasi Admin
@@ -197,7 +197,7 @@ export function LupaPasswordForm() {
         <motion.p
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-lg border-l-4 border-l-[#EF4444] bg-[#1C2B33] px-3 py-2 text-sm font-medium text-white"
+          className="rounded-lg border-l-4 border-l-[#EF4444] bg-[#013920] px-3 py-2 text-sm font-medium text-white"
         >
           {error}
         </motion.p>
@@ -209,8 +209,8 @@ export function LupaPasswordForm() {
         disabled={loading}
         whileHover={!loading ? { scale: 1.02 } : undefined}
         whileTap={!loading ? { scale: 0.98 } : undefined}
-        className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(0,130,251,0.55)] transition-all hover:shadow-[0_14px_40px_-8px_rgba(0,130,251,0.70)] hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-70"
-        style={{ background: "#0082FB" }}
+        className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(0, 200, 83,0.55)] transition-all hover:shadow-[0_14px_40px_-8px_rgba(0, 200, 83,0.70)] hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-70"
+        style={{ background: "#00C853" }}
       >
         {loading ? (
           <>

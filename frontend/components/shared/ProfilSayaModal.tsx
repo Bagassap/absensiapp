@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { X, Mail, IdCard, Camera, Loader2, User } from "lucide-react";
+import { X, Mail, IdCard, Camera, Loader2, User, KeyRound } from "lucide-react";
 import { Avatar } from "@/components/shared/Avatar";
 import { ChangeFotoProfilModal } from "@/components/shared/ChangeFotoProfilModal";
+import { GantiPasswordModal } from "@/components/shared/GantiPasswordModal";
 
 type MeResponse = {
   id: string;
@@ -18,12 +19,13 @@ type MeResponse = {
 };
 
 const ROLE_LABEL: Record<string, string> = { ADMIN: "Administrator", GURU: "Guru" };
-const GRADIENT = "#0082FB";
+const GRADIENT = "#00C853";
 
 export function ProfilSayaModal({ onClose }: { onClose: () => void }) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [showChangeFoto, setShowChangeFoto] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" })
@@ -41,7 +43,7 @@ export function ProfilSayaModal({ onClose }: { onClose: () => void }) {
       >
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
         <motion.div
-          className="relative z-10 w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#1C2B33]"
+          className="relative z-10 w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
           initial={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.92, opacity: 0 }}
@@ -87,7 +89,7 @@ export function ProfilSayaModal({ onClose }: { onClose: () => void }) {
                     type="button"
                     onClick={() => setShowChangeFoto(true)}
                     title="Ganti foto profil"
-                    className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#0064E0] text-white shadow-md transition hover:brightness-90"
+                    className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#013920] text-white shadow-md transition hover:brightness-90"
                   >
                     <Camera size={11} />
                   </button>
@@ -117,8 +119,8 @@ export function ProfilSayaModal({ onClose }: { onClose: () => void }) {
               )}
               {me.loginId && (
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0082FB] dark:bg-[#0064E0]/20">
-                    <IdCard size={15} className="text-[#0082FB]" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#00C853] dark:bg-slate-900/20">
+                    <IdCard size={15} className="text-[#000000]" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Login ID</p>
@@ -146,7 +148,15 @@ export function ProfilSayaModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          <div className="flex justify-end border-t border-slate-100 px-6 py-4 dark:border-slate-700/50">
+          <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-6 py-4 dark:border-slate-700/50">
+            <button
+              type="button"
+              onClick={() => setShowChangePassword(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-white/5"
+            >
+              <KeyRound size={14} />
+              Ganti Password
+            </button>
             <button
               onClick={onClose}
               className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-white/5"
@@ -159,6 +169,9 @@ export function ProfilSayaModal({ onClose }: { onClose: () => void }) {
 
       {showChangeFoto && (
         <ChangeFotoProfilModal gradient={GRADIENT} onClose={() => setShowChangeFoto(false)} />
+      )}
+      {showChangePassword && (
+        <GantiPasswordModal gradient={GRADIENT} onClose={() => setShowChangePassword(false)} />
       )}
     </AnimatePresence>
   );

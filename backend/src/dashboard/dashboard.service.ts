@@ -10,15 +10,17 @@ export class DashboardService {
     const today = todayStr();
     const dates = weekDates();
 
-    const [totalGuru, absensiHariIni, absensiWeekRaw, guruList] = await Promise.all([
+    const [totalGuru, kegiatanHariIni, absensiHariIni, kegiatanWeek, absensiWeek, guruList] = await Promise.all([
       this.prisma.guru.count(),
-      this.prisma.absensiHarian.findMany({
-        where: { tanggal: today },
-        select: { guruId: true, status: true, waktuAbsen: true, waktuPulang: true },
+      this.prisma.kegiatan.findMany({ where: { tanggal: today }, select: { id: true } }),
+      this.prisma.absensiKegiatan.findMany({
+        where: { kegiatan: { tanggal: today } },
+        select: { guruId: true, kegiatanId: true, waktuAbsen: true },
       }),
-      this.prisma.absensiHarian.findMany({
-        where: { tanggal: { in: dates } },
-        select: { tanggal: true, status: true },
+      this.prisma.kegiatan.findMany({ where: { tanggal: { in: dates } }, select: { id: true, tanggal: true } }),
+      this.prisma.absensiKegiatan.findMany({
+        where: { kegiatan: { tanggal: { in: dates } } },
+        select: { guruId: true, kegiatan: { select: { tanggal: true } } },
       }),
       this.prisma.guru.findMany({
         select: { id: true, nip: true, user: { select: { id: true, nama: true, fotoProfil: true } } },
@@ -26,43 +28,52 @@ export class DashboardService {
       }),
     ]);
 
-    const hadirHariIni = absensiHariIni.filter((a) => a.status === 'HADIR').length;
-    const izinHariIni = absensiHariIni.filter((a) => a.status === 'IZIN').length;
-    const sakitHariIni = absensiHariIni.filter((a) => a.status === 'SAKIT').length;
-    const belumAbsenHariIni = totalGuru - absensiHariIni.length;
+    const guruSudahAbsenSet = new Set(absensiHariIni.map((a) => a.guruId));
+    const guruSudahAbsen = guruSudahAbsenSet.size;
+    const guruBelumAbsen = Math.max(0, totalGuru - guruSudahAbsen);
 
-    const weeklyAbsensi = dates.map((date, i) => ({
-      hari: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum'][i],
-      date,
-      hadir: absensiWeekRaw.filter((a) => a.tanggal === date && a.status === 'HADIR').length,
-      total: totalGuru,
-    }));
+    const kegiatanByDate = new Map<string, number>();
+    for (const k of kegiatanWeek) kegiatanByDate.set(k.tanggal, (kegiatanByDate.get(k.tanggal) ?? 0) + 1);
+    const submisiByDate = new Map<string, Set<string>>();
+    for (const a of absensiWeek) {
+      const tgl = a.kegiatan.tanggal;
+      if (!submisiByDate.has(tgl)) submisiByDate.set(tgl, new Set());
+      submisiByDate.get(tgl)!.add(a.guruId);
+    }
 
-    const absensiMap = new Map(absensiHariIni.map((a) => [a.guruId, a]));
-    const statusGuru = guruList.map((g) => {
-      const rec = absensiMap.get(g.id);
+    const weeklyKegiatan = dates.map((date, i) => {
+      const kegiatan = kegiatanByDate.get(date) ?? 0;
+      const guruHadir = submisiByDate.get(date)?.size ?? 0;
       return {
-        guruId: g.id,
-        nama: g.user?.nama ?? '-',
-        nip: g.nip,
-        fotoProfil: g.user?.fotoProfil ?? null,
-        status: rec?.status ?? null,
-        waktuAbsen: rec?.waktuAbsen ?? null,
-        waktuPulang: rec?.waktuPulang ?? null,
+        hari: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum'][i],
+        date,
+        kegiatan,
+        guruHadir,
+        persen: totalGuru > 0 ? Math.round((guruHadir / totalGuru) * 100) : 0,
       };
     });
 
+    const submisiCountByGuru = new Map<string, number>();
+    for (const a of absensiHariIni) submisiCountByGuru.set(a.guruId, (submisiCountByGuru.get(a.guruId) ?? 0) + 1);
+    const statusGuru = guruList.map((g) => ({
+      guruId: g.id,
+      nama: g.user?.nama ?? '-',
+      nip: g.nip,
+      fotoProfil: g.user?.fotoProfil ?? null,
+      kegiatanDiabsen: submisiCountByGuru.get(g.id) ?? 0,
+      totalKegiatanHariIni: kegiatanHariIni.length,
+      sudahAbsen: guruSudahAbsenSet.has(g.id),
+    }));
+
     return {
       totalGuru,
-      kehadiran: {
-        hadir: hadirHariIni,
-        izin: izinHariIni,
-        sakit: sakitHariIni,
-        belumAbsen: belumAbsenHariIni,
-        total: totalGuru,
-        persen: totalGuru > 0 ? Math.round((hadirHariIni / totalGuru) * 100) : 0,
+      kehadiranHariIni: {
+        kegiatanHariIni: kegiatanHariIni.length,
+        guruSudahAbsen,
+        guruBelumAbsen,
+        persen: totalGuru > 0 ? Math.round((guruSudahAbsen / totalGuru) * 100) : 0,
       },
-      weeklyAbsensi,
+      weeklyKegiatan,
       statusGuru,
     };
   }
@@ -72,36 +83,45 @@ export class DashboardService {
     if (!guru) return { error: 'Profil guru tidak ditemukan' };
 
     const dates = weekDates();
+    const today = todayStr();
 
-    const [absensiAll, absensiWeekRaw] = await Promise.all([
-      this.prisma.absensiHarian.findMany({
-        where: { guruId: guru.id },
-        select: { status: true },
-      }),
-      this.prisma.absensiHarian.findMany({
-        where: { guruId: guru.id, tanggal: { in: dates } },
-        select: { tanggal: true, status: true },
-      }),
+    const [totalKegiatanLifetime, totalDiikutiLifetime, kegiatanHariIni, absensiHariIni, kegiatanWeek, absensiWeek] = await Promise.all([
+      this.prisma.kegiatan.count(),
+      this.prisma.absensiKegiatan.count({ where: { guruId: guru.id } }),
+      this.prisma.kegiatan.findMany({ where: { tanggal: today }, select: { id: true } }),
+      this.prisma.absensiKegiatan.findMany({ where: { guruId: guru.id, kegiatan: { tanggal: today } }, select: { kegiatanId: true } }),
+      this.prisma.kegiatan.findMany({ where: { tanggal: { in: dates } }, select: { id: true, tanggal: true } }),
+      this.prisma.absensiKegiatan.findMany({ where: { guruId: guru.id, kegiatan: { tanggal: { in: dates } } }, select: { kegiatan: { select: { tanggal: true } } } }),
     ]);
 
-    const hadir = absensiAll.filter((a) => a.status === 'HADIR').length;
-    const izin = absensiAll.filter((a) => a.status === 'IZIN').length;
-    const sakit = absensiAll.filter((a) => a.status === 'SAKIT').length;
-    const totalAbsensi = absensiAll.length;
     const kehadiran = {
-      hadir,
-      izin,
-      sakit,
-      total: totalAbsensi,
-      persen: totalAbsensi > 0 ? Math.round((hadir / totalAbsensi) * 100) : 0,
+      totalKegiatanDiikuti: totalDiikutiLifetime,
+      totalKegiatan: totalKegiatanLifetime,
+      persen: totalKegiatanLifetime > 0 ? Math.round((totalDiikutiLifetime / totalKegiatanLifetime) * 100) : 0,
+      kegiatanHariIni: kegiatanHariIni.length,
+      sudahAbsenHariIni: absensiHariIni.length,
     };
 
-    const weeklyAbsensi = dates.map((date, i) => ({
-      hari: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum'][i],
-      date,
-      status: absensiWeekRaw.find((a) => a.tanggal === date)?.status ?? null,
-    }));
+    const kegiatanByDate = new Map<string, number>();
+    for (const k of kegiatanWeek) kegiatanByDate.set(k.tanggal, (kegiatanByDate.get(k.tanggal) ?? 0) + 1);
+    const submisiByDate = new Map<string, number>();
+    for (const a of absensiWeek) {
+      const tgl = a.kegiatan.tanggal;
+      submisiByDate.set(tgl, (submisiByDate.get(tgl) ?? 0) + 1);
+    }
 
-    return { kehadiran, weeklyAbsensi };
+    const weeklyKegiatan = dates.map((date, i) => {
+      const kegiatan = kegiatanByDate.get(date) ?? 0;
+      const diikuti = submisiByDate.get(date) ?? 0;
+      return {
+        hari: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum'][i],
+        date,
+        kegiatan,
+        diikuti,
+        persen: kegiatan > 0 ? Math.round((diikuti / kegiatan) * 100) : 0,
+      };
+    });
+
+    return { kehadiran, weeklyKegiatan };
   }
 }

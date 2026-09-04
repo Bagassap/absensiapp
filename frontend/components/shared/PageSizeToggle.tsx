@@ -6,19 +6,20 @@ function labelFor(size: number) {
   return Number.isFinite(size) ? String(size) : "Semua";
 }
 
-export function PageSizeToggle({ value, onChange }: {
+export function PageSizeToggle({ value, onChange, options = PAGE_SIZE_OPTIONS }: {
   value: number;
   onChange: (size: number) => void;
+  options?: readonly number[];
 }) {
   return (
     <div className="inline-flex shrink-0 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600">
-      {PAGE_SIZE_OPTIONS.map((size, i) => {
+      {options.map((size, i) => {
         const active = value === size;
         return (
           <button key={size} type="button" onClick={() => onChange(size)}
             className={`px-3 py-1.5 text-xs font-bold transition-colors ${i > 0 ? "border-l border-slate-200 dark:border-slate-600" : ""} ${
               active
-                ? "bg-[#0082FB] text-white"
+                ? "bg-[#00C853] text-white"
                 : "bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}>
             {labelFor(size)}

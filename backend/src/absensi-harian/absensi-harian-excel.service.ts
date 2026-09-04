@@ -4,83 +4,62 @@ import { promises as fs } from 'fs';
 import { join, normalize } from 'path';
 import { getStaticMapImage } from '../common/utils/static-map.util';
 
-type GuruRekap = {
+type AbsensiRow = {
+  id: string;
   guruId: string;
   nama: string | null;
-  nip?: string | null;
-  status: string | null;
-  waktuAbsen?: string | null;
-  lokasi?: string | null;
-  foto?: string | null;
-  ttd?: string | null;
-  catatan?: string | null;
-  waktuPulang?: string | null;
-  lokasiPulang?: string | null;
-  fotoPulang?: string | null;
-  ttdPulang?: string | null;
-  catatanPulang?: string | null;
+  npy: string | null;
+  kegiatanNama: string;
+  waktuAbsen: string;
+  lokasi: string;
+  foto: string;
+  ttd: string;
 };
 
-type RekapGuruData = {
-  tanggal: string;
-  guru: GuruRekap[];
-};
-
-type RangeGuruRow = {
-  guruId: string;
-  nama: string | null;
-  nip: string | null;
-  byTanggal: Record<string, { status: string | null; waktuAbsen: string | null; waktuPulang: string | null }>;
-  summary: { HADIR: number; IZIN: number; SAKIT: number; ALPA: number; totalHariEfektif: number; persentaseKehadiran: number };
-};
-type RekapRangeData = {
+type RekapHarian = { tanggal: string; kegiatan: { nama: string; jamLabel: string; jumlahAbsen: number; guruTotal: number }[]; rows: AbsensiRow[] };
+type RekapGuruHarian = { tanggal: string; guruNama: string | null; rows: AbsensiRow[] };
+type RekapRange = {
+  mode: 'mingguan' | 'bulanan';
   tanggalMulai: string;
   tanggalSelesai: string;
-  tanggalList: string[];
-  guru: RangeGuruRow[];
+  totalKegiatan: number;
+  totalHadirKeseluruhan: number;
+  totalKegiatanKeseluruhan: number;
+  persentaseKeseluruhan: number;
+  guru: { nama: string | null; npy: string | null; hadir: number; totalKegiatan: number; persentaseKehadiran: number }[];
 };
+type RekapGuruRange = { mode: 'mingguan' | 'bulanan'; tanggalMulai: string; tanggalSelesai: string; guruNama: string | null; rows: { tanggal: string; kegiatanNama: string; hadir: boolean; waktuAbsen: string | null }[]; summary: { hadir: number; totalKegiatan: number; persentaseKehadiran: number } };
 
-const STATUS_LABEL: Record<string, string> = {
-  HADIR: 'Hadir',
-  IZIN: 'Izin',
-  SAKIT: 'Sakit',
-  ALPA: 'Alpa',
-};
-const STATUS_LETTER: Record<string, string> = { HADIR: 'H', IZIN: 'I', SAKIT: 'S', ALPA: 'A' };
-const STATUS_FILL: Record<string, string> = { HADIR: 'FFE8F8F1', IZIN: 'FFF0ECFF', SAKIT: 'FFFFF5DC', ALPA: 'FFFFE9EA' };
-const STATUS_FONT: Record<string, string> = { HADIR: 'FF00D67F', IZIN: 'FF6334F4', SAKIT: 'FFE6A800', ALPA: 'FFFF3644' };
+const FONT_NAME = 'Satoshi';
+const NA_FONT = { name: FONT_NAME, color: { argb: 'FFCBD5E1' }, italic: true };
+const LINK_FONT = { name: FONT_NAME, color: { argb: 'FF2563EB' }, underline: true };
+const HEADER_FILL = 'FF013920';
+const TINT_FILL = 'FFFFF7E4';
+const MUTED_ARGB = 'FF64748B';
 
-function formatTanggalHeader(tanggal: string): string {
-  const [, m, d] = tanggal.split('-');
-  return `${d}/${m}`;
-}
+const UPLOADS_ROOT = join(process.cwd(), 'uploads');
 
-function formatTanggalFull(tanggal: string): string {
+// "2 September 2026" — dipakai judul rentang mingguan/bulanan.
+function formatTanggalRingkas(tanggal: string): string {
   try {
     return new Date(`${tanggal}T00:00:00`).toLocaleDateString('id-ID', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'Asia/Jakarta',
+      day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta',
     });
   } catch {
     return tanggal;
   }
 }
 
-// Excel embeds only the font NAME, not the glyphs themselves (unlike PDF) —
-// a viewer without Satoshi installed falls back to their default font, but
-// we still set it everywhere so it renders correctly wherever it is available.
-const FONT_NAME = 'Satoshi';
-const NA_FONT = { name: FONT_NAME, color: { argb: 'FFCBD5E1' }, italic: true };
-const LINK_FONT = { name: FONT_NAME, color: { argb: 'FF2563EB' }, underline: true };
+function rangeTitle(mode: 'mingguan' | 'bulanan', tanggalMulai: string, tanggalSelesai: string): { title: string; subtitle: string } {
+  if (mode === 'bulanan') {
+    const bulanTahun = new Date(`${tanggalMulai}T00:00:00`).toLocaleDateString('id-ID', {
+      month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta',
+    });
+    return { title: 'Absensi Bulanan', subtitle: bulanTahun };
+  }
+  return { title: 'Absensi Mingguan', subtitle: `${formatTanggalRingkas(tanggalMulai)} – ${formatTanggalRingkas(tanggalSelesai)}` };
+}
 
-const UPLOADS_ROOT = join(process.cwd(), 'uploads');
-
-// lokasi is stored as "lat,lng" (see parseLokasi in frontend/shared.ts) — but
-// can also be the "GPS tidak tersedia" fallback string when geolocation was
-// blocked, so validate both parts are actually numeric before linking.
 function googleMapsUrl(lokasi?: string | null): string | null {
   if (!lokasi) return null;
   const parts = lokasi.split(',');
@@ -90,12 +69,6 @@ function googleMapsUrl(lokasi?: string | null): string | null {
   if (!lat || !lng || Number.isNaN(Number(lat)) || Number.isNaN(Number(lng))) return null;
   return `https://www.google.com/maps?q=${lat},${lng}`;
 }
-
-const FOTO_SIZE = { width: 80, height: 80 };
-const TTD_SIZE = { width: 100, height: 50 };
-const MAP_SIZE = { width: 120, height: 90 };
-// 90px-tall map images (the tallest embed) need ~68pt of row height (96dpi: 1pt = 1.333px); add padding so images aren't clipped.
-const MEDIA_ROW_HEIGHT = 76;
 
 async function readFotoBuffer(fotoUrl?: string | null): Promise<Buffer | null> {
   if (!fotoUrl || !fotoUrl.startsWith('/uploads/')) return null;
@@ -119,7 +92,6 @@ function decodeTtdBuffer(ttd?: string | null): Buffer | null {
   }
 }
 
-// exceljs only embeds jpeg/png/gif, so sniff the real format instead of trusting the upload extension.
 function detectImageExtension(buffer: Buffer): 'png' | 'jpeg' | 'gif' | null {
   if (buffer.length >= 4 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'png';
   if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpeg';
@@ -127,216 +99,188 @@ function detectImageExtension(buffer: Buffer): 'png' | 'jpeg' | 'gif' | null {
   return null;
 }
 
+const FOTO_SIZE = { width: 80, height: 80 };
+const TTD_SIZE = { width: 100, height: 50 };
+const MAP_SIZE = { width: 120, height: 90 };
+const MEDIA_ROW_HEIGHT = 76;
+
 @Injectable()
 export class AbsensiHarianExcelService {
-  async build(rekap: RekapGuruData): Promise<Buffer> {
+  private styleHeaderRow(row: ExcelJS.Row) {
+    row.font = { name: FONT_NAME, bold: true, color: { argb: 'FFFFFFFF' } };
+    row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } };
+    row.alignment = { vertical: 'middle' };
+    row.height = 20;
+  }
+
+  private headerRow(ws: ExcelJS.Worksheet) {
+    const row = ws.getRow(1);
+    this.styleHeaderRow(row);
+    return row;
+  }
+
+  // Pita judul "Absensi Mingguan/Bulanan ..." + ringkasan Total Kegiatan/
+  // Kehadiran/Persentase di 2 baris paling atas worksheet rekap rentang —
+  // dipakai buildRange & buildGuruRange supaya keduanya konsisten dan
+  // langsung kelihatan tanpa perlu scroll ke tabel.
+  private titleBand(ws: ExcelJS.Worksheet, colCount: number, title: string, subtitle: string, statsLine: string) {
+    ws.mergeCells(1, 1, 1, colCount);
+    const titleCell = ws.getCell(1, 1);
+    titleCell.value = title;
+    titleCell.font = { name: FONT_NAME, bold: true, size: 15, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } };
+    titleCell.alignment = { vertical: 'middle', indent: 1 };
+    ws.getRow(1).height = 26;
+
+    ws.mergeCells(2, 1, 2, colCount);
+    const subCell = ws.getCell(2, 1);
+    subCell.value = `${subtitle}   ·   ${statsLine}`;
+    subCell.font = { name: FONT_NAME, italic: true, size: 10, color: { argb: MUTED_ARGB } };
+    subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TINT_FILL } };
+    subCell.alignment = { vertical: 'middle', indent: 1 };
+    ws.getRow(2).height = 20;
+  }
+
+  async build(rekap: RekapHarian): Promise<Buffer> {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Absensi Guru';
     wb.created = new Date();
-    const ws = wb.addWorksheet('Absensi Harian', { views: [{ state: 'frozen', ySplit: 1 }] });
+    const ws = wb.addWorksheet('Absensi Kegiatan', { views: [{ state: 'frozen', ySplit: 1 }] });
 
     ws.columns = [
       { header: 'Nama', key: 'nama', width: 26 },
-      { header: 'NIP', key: 'nip', width: 18 },
-      { header: 'Status', key: 'status', width: 10 },
-      { header: 'Waktu Hadir', key: 'waktuAbsen', width: 12 },
-      { header: 'Waktu Pulang', key: 'waktuPulang', width: 12 },
-      { header: 'Lokasi Hadir', key: 'lokasi', width: 32 },
-      { header: 'Peta Hadir', key: 'petaLokasi', width: 18 },
-      { header: 'Lokasi Pulang', key: 'lokasiPulang', width: 32 },
-      { header: 'Peta Pulang', key: 'petaLokasiPulang', width: 18 },
-      { header: 'Catatan', key: 'catatan', width: 30 },
-      { header: 'Foto Hadir', key: 'foto', width: 13 },
-      { header: 'Foto Pulang', key: 'fotoPulang', width: 13 },
-      { header: 'TTD Hadir', key: 'ttd', width: 16 },
-      { header: 'TTD Pulang', key: 'ttdPulang', width: 16 },
+      { header: 'NPY', key: 'npy', width: 18 },
+      { header: 'Kegiatan', key: 'kegiatan', width: 22 },
+      { header: 'Jam Absen', key: 'waktuAbsen', width: 12 },
+      { header: 'Lokasi', key: 'lokasi', width: 32 },
+      { header: 'Peta', key: 'peta', width: 18 },
+      { header: 'Foto', key: 'foto', width: 13 },
+      { header: 'TTD', key: 'ttd', width: 16 },
     ];
-
-    const headerRow = ws.getRow(1);
-    headerRow.font = { name: FONT_NAME, bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6334F4' } };
-    headerRow.alignment = { vertical: 'middle' };
-    headerRow.height = 20;
-
+    this.headerRow(ws);
     const colIndex: Record<string, number> = {};
-    ws.columns.forEach((col, i) => {
-      if (col.key) colIndex[col.key] = i;
-    });
+    ws.columns.forEach((col, i) => { if (col.key) colIndex[col.key] = i; });
 
-    for (const g of rekap.guru) {
+    for (const r of rekap.rows) {
       const row = ws.addRow({
-        nama: g.nama || '-',
-        nip: g.nip || '-',
-        status: g.status ? (STATUS_LABEL[g.status] ?? g.status) : '-',
-        waktuAbsen: g.waktuAbsen || '-',
-        waktuPulang: g.waktuPulang || '-',
-        lokasi: g.lokasi || '-',
-        lokasiPulang: g.lokasiPulang || '-',
-        catatan: [g.catatan, g.catatanPulang].filter(Boolean).join(' | ') || '-',
+        nama: r.nama || '-',
+        npy: r.npy || '-',
+        kegiatan: r.kegiatanNama,
+        waktuAbsen: r.waktuAbsen,
+        lokasi: r.lokasi,
       });
-      row.alignment = { vertical: 'middle', wrapText: false };
+      row.alignment = { vertical: 'middle' };
 
-      const lokasiUrl = googleMapsUrl(g.lokasi);
-      if (lokasiUrl) {
+      const url = googleMapsUrl(r.lokasi);
+      if (url) {
         const cell = row.getCell('lokasi');
-        cell.value = { text: g.lokasi as string, hyperlink: lokasiUrl };
-        cell.font = LINK_FONT;
-      }
-      const lokasiPulangUrl = googleMapsUrl(g.lokasiPulang);
-      if (lokasiPulangUrl) {
-        const cell = row.getCell('lokasiPulang');
-        cell.value = { text: g.lokasiPulang as string, hyperlink: lokasiPulangUrl };
+        cell.value = { text: r.lokasi, hyperlink: url };
         cell.font = LINK_FONT;
       }
 
-      // Map thumbnails are best-effort — getStaticMapImage() never throws and
-      // resolves to null on any failure (invalid coords, network error,
-      // timeout), so a slow/unreachable tile server can never block the
-      // export. The Lokasi Hadir/Pulang hyperlink cells above always work
-      // regardless of whether the thumbnail comes back.
-      const [fotoBuf, fotoPulangBuf, mapBuf, mapPulangBuf] = await Promise.all([
-        readFotoBuffer(g.foto),
-        readFotoBuffer(g.fotoPulang),
-        getStaticMapImage(g.lokasi),
-        getStaticMapImage(g.lokasiPulang),
-      ]);
-      const ttdBuf = decodeTtdBuffer(g.ttd);
-      const ttdPulangBuf = decodeTtdBuffer(g.ttdPulang);
-
+      const [fotoBuf, mapBuf] = await Promise.all([readFotoBuffer(r.foto), getStaticMapImage(r.lokasi)]);
+      const ttdBuf = decodeTtdBuffer(r.ttd);
       const hasImage = [
         this.embedOrClear(wb, ws, row, colIndex.foto, fotoBuf, FOTO_SIZE),
-        this.embedOrClear(wb, ws, row, colIndex.fotoPulang, fotoPulangBuf, FOTO_SIZE),
         this.embedOrClear(wb, ws, row, colIndex.ttd, ttdBuf, TTD_SIZE),
-        this.embedOrClear(wb, ws, row, colIndex.ttdPulang, ttdPulangBuf, TTD_SIZE),
-        this.embedOrClear(wb, ws, row, colIndex.petaLokasi, mapBuf, MAP_SIZE),
-        this.embedOrClear(wb, ws, row, colIndex.petaLokasiPulang, mapPulangBuf, MAP_SIZE),
+        this.embedOrClear(wb, ws, row, colIndex.peta, mapBuf, MAP_SIZE),
       ].some(Boolean);
-
       if (hasImage) row.height = MEDIA_ROW_HEIGHT;
     }
 
+    if (rekap.rows.length === 0) {
+      ws.addRow({ nama: 'Belum ada absensi kegiatan untuk tanggal ini.' });
+    }
+
     const buf = await wb.xlsx.writeBuffer();
     return Buffer.from(buf);
   }
 
-  // Weekly/monthly recap has two very different shapes: a "semua guru" export
-  // is a matrix (rows = guru, one column per date, cell = H/I/S/A) so the
-  // whole school fits on one screen/printout, while a "1 guru" export is a
-  // tall date-by-date table (single guru, no point in a 1-row matrix) with a
-  // summary block at the end. No foto/TTD/map embeds in either — that's
-  // harian-only, per spec, and would be far too much data across a week/month.
-  async buildRange(rekap: RekapRangeData, scope: 'kelas' | 'siswa'): Promise<Buffer> {
-    return scope === 'kelas' ? this.buildRangeMatrix(rekap) : this.buildRangeGuru(rekap);
+  async buildGuru(rekap: RekapGuruHarian): Promise<Buffer> {
+    return this.build({ tanggal: rekap.tanggal, kegiatan: [], rows: rekap.rows });
   }
 
-  private async buildRangeMatrix(rekap: RekapRangeData): Promise<Buffer> {
+  async buildRange(rekap: RekapRange): Promise<Buffer> {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Absensi Guru';
     wb.created = new Date();
-    const ws = wb.addWorksheet('Rekap Absensi', { views: [{ state: 'frozen', xSplit: 2, ySplit: 1 }] });
+    const ws = wb.addWorksheet('Rekap Kegiatan', { views: [{ state: 'frozen', ySplit: 3 }] });
 
-    const dateCols = rekap.tanggalList.map((tgl) => ({ header: formatTanggalHeader(tgl), key: `d_${tgl}`, width: 6 }));
-    ws.columns = [
-      { header: 'Nama', key: 'nama', width: 26 },
-      { header: 'NIP', key: 'nip', width: 18 },
-      ...dateCols,
-      { header: 'Hadir', key: 'totalHadir', width: 8 },
-      { header: 'Izin', key: 'totalIzin', width: 8 },
-      { header: 'Sakit', key: 'totalSakit', width: 8 },
-      { header: 'Alpa', key: 'totalAlpa', width: 8 },
-      { header: 'Kehadiran', key: 'persentase', width: 12 },
+    const colDefs = [
+      { key: 'nama', width: 26 },
+      { key: 'npy', width: 18 },
+      { key: 'hadir', width: 16 },
+      { key: 'totalKegiatan', width: 16 },
+      { key: 'persentase', width: 20 },
     ];
+    ws.columns = colDefs;
 
-    const headerRow = ws.getRow(1);
-    headerRow.font = { name: FONT_NAME, bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6334F4' } };
-    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-    headerRow.height = 24;
+    const { title, subtitle } = rangeTitle(rekap.mode, rekap.tanggalMulai, rekap.tanggalSelesai);
+    const statsLine = `Total Kegiatan: ${rekap.totalKegiatan}   ·   Kehadiran Keseluruhan: ${rekap.totalHadirKeseluruhan}/${rekap.totalKegiatanKeseluruhan} (${rekap.persentaseKeseluruhan}%)`;
+    this.titleBand(ws, colDefs.length, title, subtitle, statsLine);
+
+    ws.getRow(3).values = ['Nama', 'NPY', 'Kegiatan Diikuti', 'Total Kegiatan', 'Kehadiran'];
+    this.styleHeaderRow(ws.getRow(3));
 
     for (const g of rekap.guru) {
-      const rowData: Record<string, string | number> = {
+      const row = ws.addRow({
         nama: g.nama || '-',
-        nip: g.nip || '-',
-        totalHadir: g.summary.HADIR,
-        totalIzin: g.summary.IZIN,
-        totalSakit: g.summary.SAKIT,
-        totalAlpa: g.summary.ALPA,
-        persentase: `${g.summary.persentaseKehadiran}%`,
-      };
-      for (const tgl of rekap.tanggalList) {
-        const status = g.byTanggal[tgl]?.status;
-        rowData[`d_${tgl}`] = status ? (STATUS_LETTER[status] ?? '?') : '-';
-      }
-      const row = ws.addRow(rowData);
-      row.alignment = { vertical: 'middle', horizontal: 'center' };
-      row.getCell('nama').alignment = { vertical: 'middle', horizontal: 'left' };
-
-      for (const tgl of rekap.tanggalList) {
-        const status = g.byTanggal[tgl]?.status;
-        const cell = row.getCell(`d_${tgl}`);
-        if (status && STATUS_FILL[status]) {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: STATUS_FILL[status] } };
-          cell.font = { name: FONT_NAME, bold: true, color: { argb: STATUS_FONT[status] } };
-        } else {
-          cell.font = NA_FONT;
-        }
-      }
+        npy: g.npy || '-',
+        hadir: g.hadir,
+        totalKegiatan: g.totalKegiatan,
+        persentase: `${g.persentaseKehadiran}%`,
+      });
+      row.alignment = { vertical: 'middle' };
+      row.getCell('persentase').font = { name: FONT_NAME, bold: true, color: { argb: g.persentaseKehadiran >= 75 ? 'FF00A34A' : 'FFEF4444' } };
     }
 
     const buf = await wb.xlsx.writeBuffer();
     return Buffer.from(buf);
   }
 
-  private async buildRangeGuru(rekap: RekapRangeData): Promise<Buffer> {
+  async buildGuruRange(rekap: RekapGuruRange): Promise<Buffer> {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Absensi Guru';
     wb.created = new Date();
-    const g = rekap.guru[0];
-    const ws = wb.addWorksheet('Rekap Absensi', { views: [{ state: 'frozen', ySplit: 1 }] });
+    const ws = wb.addWorksheet('Rekap Kegiatan', { views: [{ state: 'frozen', ySplit: 3 }] });
 
-    ws.columns = [
-      { header: 'Tanggal', key: 'tanggal', width: 26 },
-      { header: 'Status', key: 'status', width: 12 },
-      { header: 'Waktu Hadir', key: 'waktuAbsen', width: 14 },
-      { header: 'Waktu Pulang', key: 'waktuPulang', width: 14 },
+    const colDefs = [
+      { key: 'tanggal', width: 14 },
+      { key: 'kegiatan', width: 26 },
+      { key: 'status', width: 12 },
+      { key: 'waktuAbsen', width: 12 },
     ];
-    const headerRow = ws.getRow(1);
-    headerRow.font = { name: FONT_NAME, bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6334F4' } };
-    headerRow.alignment = { vertical: 'middle' };
-    headerRow.height = 20;
+    ws.columns = colDefs;
 
-    for (const tgl of rekap.tanggalList) {
-      const rec = g?.byTanggal[tgl];
-      const status = rec?.status;
+    const { title, subtitle } = rangeTitle(rekap.mode, rekap.tanggalMulai, rekap.tanggalSelesai);
+    const statsLine = `Total Kegiatan: ${rekap.summary.totalKegiatan}   ·   Diikuti: ${rekap.summary.hadir}   ·   Persentase: ${rekap.summary.persentaseKehadiran}%`;
+    this.titleBand(ws, colDefs.length, title, `${rekap.guruNama ?? '-'} · ${subtitle}`, statsLine);
+
+    ws.getRow(3).values = ['Tanggal', 'Kegiatan', 'Status', 'Jam Absen'];
+    this.styleHeaderRow(ws.getRow(3));
+
+    for (const r of rekap.rows) {
       const row = ws.addRow({
-        tanggal: formatTanggalFull(tgl),
-        status: status ? (STATUS_LABEL[status] ?? status) : '-',
-        waktuAbsen: rec?.waktuAbsen || '-',
-        waktuPulang: rec?.waktuPulang || '-',
+        tanggal: r.tanggal,
+        kegiatan: r.kegiatanNama,
+        status: r.hadir ? 'Hadir' : 'Tidak Hadir',
+        waktuAbsen: r.waktuAbsen || '-',
       });
-      row.alignment = { vertical: 'middle' };
-      row.getCell('status').font = status ? { name: FONT_NAME, bold: true, color: { argb: STATUS_FONT[status] ?? 'FF334155' } } : NA_FONT;
+      row.getCell('status').font = { name: FONT_NAME, bold: true, color: { argb: r.hadir ? 'FF00D67F' : 'FFEF4444' } };
     }
 
-    if (g) {
-      ws.addRow({});
-      const titleRow = ws.addRow({ tanggal: 'RINGKASAN' });
-      titleRow.font = { name: FONT_NAME, bold: true, color: { argb: 'FF334155' } };
-      ws.addRow({ tanggal: 'Total Hari Efektif', status: String(g.summary.totalHariEfektif) });
-      ws.addRow({ tanggal: 'Total Hadir', status: String(g.summary.HADIR) });
-      ws.addRow({ tanggal: 'Total Izin', status: String(g.summary.IZIN) });
-      ws.addRow({ tanggal: 'Total Sakit', status: String(g.summary.SAKIT) });
-      ws.addRow({ tanggal: 'Total Alpa', status: String(g.summary.ALPA) });
-      const pctRow = ws.addRow({ tanggal: 'Persentase Kehadiran', status: `${g.summary.persentaseKehadiran}%` });
-      pctRow.font = { name: FONT_NAME, bold: true, color: { argb: 'FF3B7CE8' } };
-    }
+    ws.addRow({});
+    const titleRow = ws.addRow({ tanggal: 'RINGKASAN' });
+    titleRow.font = { name: FONT_NAME, bold: true, color: { argb: 'FF334155' } };
+    ws.addRow({ tanggal: 'Total Kegiatan', kegiatan: String(rekap.summary.totalKegiatan) });
+    ws.addRow({ tanggal: 'Kegiatan Diikuti', kegiatan: String(rekap.summary.hadir) });
+    const pctRow = ws.addRow({ tanggal: 'Persentase Kehadiran', kegiatan: `${rekap.summary.persentaseKehadiran}%` });
+    pctRow.font = { name: FONT_NAME, bold: true, color: { argb: 'FF013920' } };
 
     const buf = await wb.xlsx.writeBuffer();
     return Buffer.from(buf);
   }
 
-  /** Embeds the image into the cell at (row, col) if possible; otherwise writes a text placeholder. Returns whether an image was embedded. */
   private embedOrClear(
     wb: ExcelJS.Workbook,
     ws: ExcelJS.Worksheet,

@@ -120,6 +120,19 @@ export class AuthService {
     };
   }
 
+  // Re-issues a session JWT from the account's CURRENT DB state, without
+  // requiring a full re-login. Needed because the onboarding gates
+  // (mustChangePassword, hasFotoProfil, ...) are read from the JWT payload
+  // by middleware, not re-queried per request — a session that predates a
+  // change made on another device (e.g. a profile photo uploaded elsewhere)
+  // keeps citing the stale claim for the rest of that token's lifetime
+  // unless something like this refreshes it.
+  async refreshToken(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Akun tidak ditemukan');
+    return { access_token: this.signToken(user) };
+  }
+
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

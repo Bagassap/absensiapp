@@ -43,7 +43,7 @@ export function DashboardShell({
 
       <div
         className={[
-          "flex min-w-0 flex-1 flex-col bg-surface transition-[padding] duration-300 ease-in-out dark:bg-[#1C2B33]",
+          "flex min-w-0 flex-1 flex-col bg-surface transition-[padding] duration-300 ease-in-out dark:bg-slate-900",
           sidebarCollapsed ? "lg:pl-18" : "lg:pl-64",
         ].join(" ")}
       >

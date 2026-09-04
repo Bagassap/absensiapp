@@ -2,78 +2,41 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import { promises as fs } from 'fs';
 import { join, normalize } from 'path';
-import { getStaticMapImage } from '../common/utils/static-map.util';
 
-type GuruRekap = {
+type AbsensiRow = {
+  id: string;
   guruId: string;
   nama: string | null;
-  nip?: string | null;
-  status: string | null;
-  waktuAbsen?: string | null;
-  lokasi?: string | null;
-  foto?: string | null;
-  ttd?: string | null;
-  catatan?: string | null;
-  waktuPulang?: string | null;
-  lokasiPulang?: string | null;
-  fotoPulang?: string | null;
-  ttdPulang?: string | null;
-  catatanPulang?: string | null;
+  npy: string | null;
+  kegiatanNama: string;
+  waktuAbsen: string;
+  lokasi: string;
+  foto: string;
+  ttd: string;
 };
 
-type RekapGuruData = {
-  tanggal: string;
-  guru: GuruRekap[];
-};
-
-type RangeGuruRow = {
-  guruId: string;
-  nama: string | null;
-  nip: string | null;
-  byTanggal: Record<string, {
-    status: string | null; waktuAbsen: string | null; waktuPulang: string | null;
-    foto: string | null; ttd: string | null; lokasi: string | null;
-    fotoPulang: string | null; ttdPulang: string | null; lokasiPulang: string | null;
-  }>;
-  summary: { HADIR: number; IZIN: number; SAKIT: number; ALPA: number; totalHariEfektif: number; persentaseKehadiran: number };
-};
-type RekapRangeData = {
+type RekapHarian = { tanggal: string; kegiatan: { nama: string; jamLabel: string; jumlahAbsen: number; guruTotal: number }[]; rows: AbsensiRow[] };
+type RekapGuruHarian = { tanggal: string; guruNama: string | null; rows: AbsensiRow[] };
+type RekapRange = {
+  mode: 'mingguan' | 'bulanan';
   tanggalMulai: string;
   tanggalSelesai: string;
-  tanggalList: string[];
-  guru: RangeGuruRow[];
+  totalKegiatan: number;
+  totalHadirKeseluruhan: number;
+  totalKegiatanKeseluruhan: number;
+  persentaseKeseluruhan: number;
+  guru: { nama: string | null; npy: string | null; hadir: number; totalKegiatan: number; persentaseKehadiran: number }[];
 };
-
-const STATUS_LABEL: Record<string, string> = {
-  HADIR: 'Hadir',
-  IZIN: 'Izin',
-  SAKIT: 'Sakit',
-  ALPA: 'Alpa',
-};
-const STATUS_COLOR: Record<string, string> = {
-  HADIR: '#00D67F',
-  IZIN: '#0082FB',
-  SAKIT: '#8A9E1F',
-  ALPA: '#EF4444',
-};
-const STATUS_BG: Record<string, string> = {
-  HADIR: '#E3FBF0',
-  IZIN: '#EAF3FF',
-  SAKIT: '#F4FFD9',
-  ALPA: '#FEE9EA',
-};
+type RekapGuruRange = { mode: 'mingguan' | 'bulanan'; tanggalMulai: string; tanggalSelesai: string; guruNama: string | null; rows: { tanggal: string; kegiatanNama: string; hadir: boolean; waktuAbsen: string | null }[]; summary: { hadir: number; totalKegiatan: number; persentaseKehadiran: number } };
 
 const UPLOADS_ROOT = join(process.cwd(), 'uploads');
 const FONT_REGULAR = join(process.cwd(), 'src', 'assets', 'fonts', 'Satoshi-Regular.ttf');
 const FONT_BOLD = join(process.cwd(), 'src', 'assets', 'fonts', 'Satoshi-Bold.ttf');
 
-// App's primary brand blue (sidebar, Pulang status, etc.) — used to give the
-// weekly/monthly recap table a matching "menarik" blue identity instead of
-// the plain gray chrome the per-day report still uses.
-const BRAND_BLUE = '#0082FB';
-const BRAND_BLUE_TINT = '#EAF3FF';
-const BRAND_BLUE_ROW = '#EAF3FF';
-const BRAND_BLUE_BORDER = '#EAF3FF';
+const BRAND = '#013920';
+const BRAND_TINT = '#FFF7E4';
+const INK = '#000000';
+const MUTED = '#64748b';
 
 function registerFonts(doc: PDFKit.PDFDocument) {
   doc.registerFont('Satoshi', FONT_REGULAR);
@@ -81,9 +44,6 @@ function registerFonts(doc: PDFKit.PDFDocument) {
   doc.font('Satoshi');
 }
 
-// lokasi is stored as "lat,lng" (see parseLokasi in frontend/shared.ts) — but
-// can also be the "GPS tidak tersedia" fallback string when geolocation was
-// blocked, so validate both parts are actually numeric before linking.
 function googleMapsUrl(lokasi?: string | null): string | null {
   if (!lokasi) return null;
   const parts = lokasi.split(',');
@@ -119,434 +79,294 @@ function decodeTtdBuffer(ttd?: string | null): Buffer | null {
 function formatTanggal(tanggal: string): string {
   try {
     return new Date(`${tanggal}T00:00:00`).toLocaleDateString('id-ID', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'Asia/Jakarta',
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta',
     });
   } catch {
     return tanggal;
   }
 }
 
-function formatTanggalShort(tanggal: string): string {
+// "2 September 2026" — tanpa nama hari, dipakai untuk judul rentang
+// mingguan/bulanan supaya tidak berulang-ulang menyebut hari.
+function formatTanggalRingkas(tanggal: string): string {
   try {
     return new Date(`${tanggal}T00:00:00`).toLocaleDateString('id-ID', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      timeZone: 'Asia/Jakarta',
+      day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta',
     });
   } catch {
     return tanggal;
   }
+}
+
+// "ABSENSI MINGGUAN" · "2 September 2026 – 6 September 2026" atau
+// "ABSENSI BULANAN" · "September 2026".
+function rangeTitle(mode: 'mingguan' | 'bulanan', tanggalMulai: string, tanggalSelesai: string): { title: string; subtitle: string } {
+  if (mode === 'bulanan') {
+    const bulanTahun = new Date(`${tanggalMulai}T00:00:00`).toLocaleDateString('id-ID', {
+      month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta',
+    });
+    return { title: 'ABSENSI BULANAN', subtitle: bulanTahun };
+  }
+  return { title: 'ABSENSI MINGGUAN', subtitle: `${formatTanggalRingkas(tanggalMulai)} – ${formatTanggalRingkas(tanggalSelesai)}` };
+}
+
+function newDoc() {
+  const doc = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true, autoFirstPage: false });
+  registerFonts(doc);
+  const chunks: Buffer[] = [];
+  doc.on('data', (c: Buffer) => chunks.push(c));
+  const done = new Promise<Buffer>((resolve, reject) => {
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+  });
+  return { doc, done };
+}
+
+function header(doc: PDFKit.PDFDocument, title: string, subtitle: string, contentWidth: number, margin: number) {
+  let y = margin;
+  doc.roundedRect(margin, y - 6, contentWidth, 3, 1.5).fill(BRAND);
+  y += 8;
+  doc.font('Satoshi-Bold').fontSize(9).fillColor(BRAND).text(title, margin, y, { characterSpacing: 0.6 });
+  doc.font('Satoshi').fontSize(10).fillColor(MUTED).text(subtitle, margin, y + 16);
+  return y + 36;
+}
+
+// Kartu ringkasan kecil (label kecil + angka besar) — dipakai untuk pita
+// statistik "Total Kegiatan / Kehadiran / Persentase" di laporan rentang
+// (mingguan/bulanan) supaya angka pentingnya langsung kelihatan, bukan
+// cuma terselip di dalam tabel.
+function statBox(
+  doc: PDFKit.PDFDocument,
+  x: number, y: number, w: number, h: number,
+  label: string, value: string,
+  bg: string, fg: string,
+) {
+  doc.roundedRect(x, y, w, h, 8).fill(bg);
+  doc.font('Satoshi').fontSize(7.5).fillColor(fg).opacity(0.75).text(label.toUpperCase(), x + 10, y + 9, { width: w - 20, characterSpacing: 0.4 });
+  doc.opacity(1);
+  doc.font('Satoshi-Bold').fontSize(17).fillColor(fg).text(value, x + 10, y + 22, { width: w - 20 });
 }
 
 @Injectable()
 export class AbsensiHarianPdfService {
-  async build(rekap: RekapGuruData, opts: { title?: string; emptyMessage?: string } = {}): Promise<Buffer> {
-    const title = opts.title ?? 'LAPORAN ABSENSI HARIAN GURU';
-    const emptyMessage = opts.emptyMessage ?? 'Tidak ada guru terdaftar.';
-
-    const doc = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true, autoFirstPage: false });
-    registerFonts(doc);
-    const chunks: Buffer[] = [];
-    doc.on('data', (c: Buffer) => chunks.push(c));
-    const done = new Promise<Buffer>((resolve, reject) => {
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
-    });
-
-    const tglFmt = formatTanggal(rekap.tanggal);
-    const guruList = rekap.guru;
-
-    if (guruList.length === 0) {
-      doc.addPage();
-      doc.fontSize(14).fillColor('#64748b').text(emptyMessage, 40, 40);
-    } else {
-      for (let i = 0; i < guruList.length; i++) {
-        doc.addPage();
-        await this.renderPage(doc, guruList[i], tglFmt, i, guruList.length, title);
-      }
-    }
-
-    doc.end();
-    return done;
-  }
-
-  // Weekly/monthly recap: still one page per guru, but instead of the
-  // full-size per-day foto/TTD/map dokumentasi block (which would mean dozens
-  // of large images per guru for a month), each page shows a summary + a
-  // Tanggal/Status/Waktu/Selfie/TTD/GPS table for every effective school day
-  // in the range, with the Selfie/TTD photos embedded as small thumbnails
-  // (GPS stays a Maps link — a thumbnail per row for that too would be too
-  // much). A month tops out around ~23 rows, which comfortably fits one A4
-  // page alongside the header/summary — no pagination-within-guru.
-  async buildRange(rekap: RekapRangeData, opts: { emptyMessage?: string } = {}): Promise<Buffer> {
-    const emptyMessage = opts.emptyMessage ?? 'Tidak ada guru terdaftar.';
-
-    const doc = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true, autoFirstPage: false });
-    registerFonts(doc);
-    const chunks: Buffer[] = [];
-    doc.on('data', (c: Buffer) => chunks.push(c));
-    const done = new Promise<Buffer>((resolve, reject) => {
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
-    });
-
-    const periodeLabel = `${formatTanggal(rekap.tanggalMulai)} – ${formatTanggal(rekap.tanggalSelesai)}`;
-
-    if (rekap.guru.length === 0) {
-      doc.addPage();
-      doc.fontSize(14).fillColor('#64748b').text(emptyMessage, 40, 40);
-    } else {
-      for (let i = 0; i < rekap.guru.length; i++) {
-        doc.addPage();
-        await this.renderRangePage(doc, rekap.guru[i], periodeLabel, rekap.tanggalList, i, rekap.guru.length);
-      }
-    }
-
-    doc.end();
-    return done;
-  }
-
-  private async renderRangePage(
+  private async renderRowsTable(
     doc: PDFKit.PDFDocument,
-    g: RangeGuruRow,
-    periodeLabel: string,
-    tanggalList: string[],
-    idx: number,
-    total: number,
+    rows: AbsensiRow[],
+    startY: number,
+    margin: number,
+    contentWidth: number,
+    includeNama: boolean,
   ) {
-    const margin = 40;
-    const pageWidth = doc.page.width;
-    const contentWidth = pageWidth - margin * 2;
-    let y = margin;
-
-    doc.roundedRect(margin, y - 6, contentWidth, 3, 1.5).fill(BRAND_BLUE);
-    y += 8;
-    doc.font('Satoshi-Bold').fontSize(9).fillColor(BRAND_BLUE).text('LAPORAN REKAP ABSENSI', margin, y, { characterSpacing: 0.6 });
-    doc.font('Satoshi-Bold').fontSize(9).fillColor(BRAND_BLUE).text(`${idx + 1} / ${total}`, margin, y, { width: contentWidth, align: 'right' });
-    doc.font('Satoshi');
-    y += 20;
-
-    doc.font('Satoshi-Bold').fontSize(20).fillColor('#1C2B33').text(g.nama || '-', margin, y, { width: contentWidth });
-    doc.font('Satoshi');
-    y = doc.y + 4;
-    doc.fontSize(11).fillColor('#64748b').text(`NIP: ${g.nip ?? '-'}`, margin, y, { width: contentWidth });
-    y = doc.y + 2;
-    doc.fontSize(11).fillColor('#64748b').text(`Periode: ${periodeLabel}`, margin, y, { width: contentWidth });
-    y = doc.y + 12;
-
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor(BRAND_BLUE_BORDER).lineWidth(1).stroke();
-    y += 14;
-
-    const summary = g.summary;
-    const badges: { label: string; count: number; clr: string; bg: string }[] = [
-      { label: 'Hadir', count: summary.HADIR, clr: STATUS_COLOR.HADIR, bg: STATUS_BG.HADIR },
-      { label: 'Izin', count: summary.IZIN, clr: STATUS_COLOR.IZIN, bg: STATUS_BG.IZIN },
-      { label: 'Sakit', count: summary.SAKIT, clr: STATUS_COLOR.SAKIT, bg: STATUS_BG.SAKIT },
-      { label: 'Alpa', count: summary.ALPA, clr: STATUS_COLOR.ALPA, bg: STATUS_BG.ALPA },
-    ];
-    const pctW = 130;
-    const badgeGap = 8;
-    const badgeW = (contentWidth - pctW - badgeGap - badgeGap * badges.length) / badges.length;
-    let bx = margin;
-    badges.forEach((b) => {
-      doc.roundedRect(bx, y, badgeW, 34, 6).fill(b.bg);
-      doc.font('Satoshi-Bold').fontSize(14).fillColor(b.clr).text(String(b.count), bx, y + 5, { width: badgeW, align: 'center' });
-      doc.font('Satoshi').fontSize(7).fillColor(b.clr).text(b.label.toUpperCase(), bx, y + 21, { width: badgeW, align: 'center' });
-      bx += badgeW + badgeGap;
-    });
-    doc.roundedRect(margin + contentWidth - pctW, y, pctW, 34, 6).fill(BRAND_BLUE_TINT);
-    doc.font('Satoshi-Bold').fontSize(14).fillColor(BRAND_BLUE).text(`${summary.persentaseKehadiran}%`, margin + contentWidth - pctW, y + 5, { width: pctW, align: 'center' });
-    doc.font('Satoshi').fontSize(7).fillColor(BRAND_BLUE).text('PERSENTASE HADIR', margin + contentWidth - pctW, y + 21, { width: pctW, align: 'center' });
-    y += 34 + 6;
-    doc.fontSize(7).fillColor('#94a3b8').text(`Total hari efektif: ${summary.totalHariEfektif}`, margin, y);
-    y += 16;
-
-    // Small thumbnails need real vertical room per row — rowH=22 leaves
-    // enough headroom that even a full month (~23 effective weekdays) still
-    // fits comfortably above the footer (measured against the ~560pt left
-    // after the header/summary block above).
-    const colFrac = [0.19, 0.11, 0.135, 0.135, 0.13, 0.13, 0.14];
+    let y = startY;
+    const headers = includeNama ? ['Nama', 'Kegiatan', 'Jam', 'Lokasi', 'Foto', 'TTD'] : ['Kegiatan', 'Jam', 'Lokasi', 'Foto', 'TTD'];
+    const colFrac = includeNama ? [0.22, 0.2, 0.1, 0.28, 0.1, 0.1] : [0.28, 0.12, 0.35, 0.12, 0.13];
     const colWidths = colFrac.map((f) => f * contentWidth);
-    const headers = ['Tanggal', 'Status', 'Waktu Hadir', 'Waktu Pulang', 'Selfie', 'TTD', 'GPS'];
-    const rowH = 22;
-    const thumb = 16;
+    const rowH = 46;
+    const thumb = 34;
 
-    const rowMedia = await Promise.all(
-      tanggalList.map(async (tgl) => {
-        const rec = g.byTanggal[tgl];
-        const fotoBuf = await readFotoBuffer(rec?.foto || rec?.fotoPulang);
-        const ttdBuf = decodeTtdBuffer(rec?.ttd || rec?.ttdPulang);
-        return { fotoBuf, ttdBuf };
-      }),
-    );
-
-    doc.roundedRect(margin, y, contentWidth, 17, 3).fill(BRAND_BLUE);
-    let hx = margin;
-    doc.font('Satoshi-Bold');
-    headers.forEach((h, i) => {
-      doc.fontSize(7.5).fillColor('#ffffff').text(h.toUpperCase(), hx + 6, y + 5, { width: colWidths[i] - 6, align: i === 0 ? 'left' : 'center' });
-      hx += colWidths[i];
-    });
-    doc.font('Satoshi');
-    y += 17;
-
-    if (tanggalList.length === 0) {
-      doc.fontSize(9).fillColor('#94a3b8').text('Tidak ada hari efektif pada periode ini.', margin, y + 6, { width: contentWidth });
-      y += rowH;
-    }
-
-    tanggalList.forEach((tgl, i) => {
-      const rec = g.byTanggal[tgl];
-      const status = rec?.status;
-      const label = status ? (STATUS_LABEL[status] ?? status) : '-';
-      const clr = status ? (STATUS_COLOR[status] ?? '#64748b') : '#94a3b8';
-      const { fotoBuf, ttdBuf } = rowMedia[i];
-      const gpsUrl = googleMapsUrl(rec?.lokasi) ?? googleMapsUrl(rec?.lokasiPulang);
-      const rowTop = y;
-      const rowMidY = rowTop + (rowH - 9) / 2;
-      if (i % 2 === 1) doc.rect(margin, y, contentWidth, rowH).fill(BRAND_BLUE_ROW);
-      let cx = margin;
-      doc.fontSize(8).fillColor('#334155').text(formatTanggalShort(tgl), cx + 6, rowMidY, { width: colWidths[0] - 6 });
-      cx += colWidths[0];
-      doc.font('Satoshi-Bold').fontSize(8).fillColor(clr).text(label, cx, rowMidY, { width: colWidths[1], align: 'center' });
+    const drawHeader = () => {
+      doc.roundedRect(margin, y, contentWidth, 18, 3).fill(BRAND);
+      let hx = margin;
+      doc.font('Satoshi-Bold');
+      headers.forEach((h, i) => {
+        doc.fontSize(8).fillColor('#ffffff').text(h.toUpperCase(), hx + 6, y + 5, { width: colWidths[i] - 6 });
+        hx += colWidths[i];
+      });
       doc.font('Satoshi');
-      cx += colWidths[1];
-      doc.fontSize(8).fillColor('#334155').text(rec?.waktuAbsen || '-', cx, rowMidY, { width: colWidths[2], align: 'center' });
-      cx += colWidths[2];
-      doc.fontSize(8).fillColor('#334155').text(rec?.waktuPulang || '-', cx, rowMidY, { width: colWidths[3], align: 'center' });
-      cx += colWidths[3];
+      y += 18;
+    };
+    drawHeader();
 
-      // Selfie thumbnail — centered in its column/row; falls back to a dash
-      // both when there's no photo at all and when the file exists but can't
-      // be decoded (corrupt/unsupported format), same defensive pattern as
-      // drawMediaBox() below for the per-day report.
-      const fotoX = cx + (colWidths[4] - thumb) / 2;
-      const thumbY = rowTop + (rowH - thumb) / 2;
+    if (rows.length === 0) {
+      doc.fontSize(10).fillColor(MUTED).text('Belum ada absensi kegiatan.', margin, y + 8, { width: contentWidth });
+      return;
+    }
+
+    for (const r of rows) {
+      if (y + rowH > doc.page.height - margin) {
+        doc.addPage();
+        y = margin;
+        drawHeader();
+      }
+      let cx = margin;
+      const cells = includeNama
+        ? [r.nama || '-', r.kegiatanNama, r.waktuAbsen, r.lokasi]
+        : [r.kegiatanNama, r.waktuAbsen, r.lokasi];
+      const cellStartIdx = includeNama ? 0 : 0;
+      doc.fontSize(8.5).fillColor(INK);
+      cells.forEach((text, i) => {
+        const colI = cellStartIdx + i;
+        if (colI === (includeNama ? 3 : 2)) {
+          const url = googleMapsUrl(r.lokasi);
+          if (url) {
+            doc.fillColor('#2563EB').text(text, cx + 4, y + 6, { width: colWidths[colI] - 8, link: url, underline: true });
+            doc.fillColor(INK);
+          } else {
+            doc.text(text, cx + 4, y + 6, { width: colWidths[colI] - 8 });
+          }
+        } else {
+          doc.text(text, cx + 4, y + 6, { width: colWidths[colI] - 8 });
+        }
+        cx += colWidths[colI];
+      });
+
+      const fotoColI = includeNama ? 4 : 3;
+      const ttdColI = includeNama ? 5 : 4;
+      const fotoX = margin + colWidths.slice(0, fotoColI).reduce((a, b) => a + b, 0);
+      const ttdX = margin + colWidths.slice(0, ttdColI).reduce((a, b) => a + b, 0);
+
+      const [fotoBuf] = await Promise.all([readFotoBuffer(r.foto)]);
+      const ttdBuf = decodeTtdBuffer(r.ttd);
       if (fotoBuf) {
-        try {
-          doc.image(fotoBuf, fotoX, thumbY, { fit: [thumb, thumb], align: 'center', valign: 'center' });
-        } catch {
-          doc.fontSize(8).fillColor('#cbd5e1').text('-', cx, rowMidY, { width: colWidths[4], align: 'center' });
-        }
-      } else {
-        doc.fontSize(8).fillColor('#cbd5e1').text('-', cx, rowMidY, { width: colWidths[4], align: 'center' });
+        try { doc.image(fotoBuf, fotoX + 6, y + 4, { width: thumb, height: thumb, fit: [thumb, thumb] }); } catch { /* skip unreadable image */ }
       }
-      cx += colWidths[4];
-
-      // TTD thumbnail — small white backing box since signatures are drawn
-      // on a transparent/white canvas and would be hard to read directly on
-      // the alternating light-blue row tint.
-      const ttdX = cx + (colWidths[5] - thumb) / 2;
       if (ttdBuf) {
-        try {
-          doc.rect(ttdX - 1, thumbY - 1, thumb + 2, thumb + 2).fill('#ffffff');
-          doc.image(ttdBuf, ttdX, thumbY, { fit: [thumb, thumb], align: 'center', valign: 'center' });
-        } catch {
-          doc.fontSize(8).fillColor('#cbd5e1').text('-', cx, rowMidY, { width: colWidths[5], align: 'center' });
-        }
-      } else {
-        doc.fontSize(8).fillColor('#cbd5e1').text('-', cx, rowMidY, { width: colWidths[5], align: 'center' });
+        try { doc.image(ttdBuf, ttdX + 6, y + 8, { width: thumb + 20, height: thumb - 10, fit: [thumb + 20, thumb - 10] }); } catch { /* skip */ }
       }
-      cx += colWidths[5];
 
-      doc.fontSize(8).fillColor(gpsUrl ? BRAND_BLUE : '#cbd5e1')
-        .text(gpsUrl ? 'Lihat' : '-', cx, rowMidY, { width: colWidths[6], align: 'center', underline: !!gpsUrl, link: gpsUrl ?? undefined });
+      doc.moveTo(margin, y + rowH).lineTo(margin + contentWidth, y + rowH).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
       y += rowH;
+    }
+  }
+
+  async build(rekap: RekapHarian): Promise<Buffer> {
+    const { doc, done } = newDoc();
+    doc.addPage();
+    const margin = 40;
+    const contentWidth = doc.page.width - margin * 2;
+    let y = header(doc, 'LAPORAN ABSENSI KEGIATAN', formatTanggal(rekap.tanggal), contentWidth, margin);
+
+    if (rekap.kegiatan.length > 0) {
+      doc.font('Satoshi-Bold').fontSize(9).fillColor(BRAND).text('KEGIATAN HARI INI', margin, y);
+      y += 14;
+      for (const k of rekap.kegiatan) {
+        doc.roundedRect(margin, y, contentWidth, 20, 4).fill(BRAND_TINT);
+        doc.font('Satoshi-Bold').fontSize(9).fillColor(INK).text(k.nama, margin + 8, y + 5, { width: contentWidth * 0.4 });
+        doc.font('Satoshi').fontSize(8.5).fillColor(MUTED).text(k.jamLabel, margin + contentWidth * 0.4, y + 5, { width: contentWidth * 0.3 });
+        doc.font('Satoshi').fontSize(8.5).fillColor(MUTED).text(`${k.jumlahAbsen}/${k.guruTotal} guru absen`, margin + contentWidth * 0.7, y + 5, { width: contentWidth * 0.3 - 8, align: 'right' });
+        y += 24;
+      }
+      y += 8;
+    }
+
+    await this.renderRowsTable(doc, rekap.rows, y, margin, contentWidth, true);
+    doc.end();
+    return done;
+  }
+
+  async buildGuru(rekap: RekapGuruHarian): Promise<Buffer> {
+    const { doc, done } = newDoc();
+    doc.addPage();
+    const margin = 40;
+    const contentWidth = doc.page.width - margin * 2;
+    const y = header(doc, 'LAPORAN ABSENSI KEGIATAN', `${rekap.guruNama ?? '-'} · ${formatTanggal(rekap.tanggal)}`, contentWidth, margin);
+    await this.renderRowsTable(doc, rekap.rows, y, margin, contentWidth, false);
+    doc.end();
+    return done;
+  }
+
+  async buildRange(rekap: RekapRange): Promise<Buffer> {
+    const { doc, done } = newDoc();
+    doc.addPage();
+    const margin = 40;
+    const contentWidth = doc.page.width - margin * 2;
+    const { title, subtitle } = rangeTitle(rekap.mode, rekap.tanggalMulai, rekap.tanggalSelesai);
+    let y = header(doc, title, subtitle, contentWidth, margin);
+
+    const boxGap = 10;
+    const boxW = (contentWidth - boxGap * 2) / 3;
+    const boxH = 46;
+    statBox(doc, margin, y, boxW, boxH, 'Total Kegiatan', `${rekap.totalKegiatan}`, BRAND_TINT, BRAND);
+    statBox(doc, margin + boxW + boxGap, y, boxW, boxH, 'Total Kehadiran', `${rekap.totalHadirKeseluruhan}/${rekap.totalKegiatanKeseluruhan}`, BRAND_TINT, BRAND);
+    statBox(doc, margin + (boxW + boxGap) * 2, y, boxW, boxH, 'Persentase Kehadiran', `${rekap.persentaseKeseluruhan}%`, BRAND, '#ffffff');
+    doc.font('Satoshi');
+    y += boxH + 16;
+
+    const headers = ['Nama', 'NPY', 'Kegiatan Diikuti', 'Kehadiran'];
+    const colFrac = [0.4, 0.22, 0.2, 0.18];
+    const colWidths = colFrac.map((f) => f * contentWidth);
+    const drawTableHeader = () => {
+      doc.roundedRect(margin, y, contentWidth, 18, 3).fill(BRAND);
+      let hx = margin;
+      doc.font('Satoshi-Bold');
+      headers.forEach((h, i) => {
+        doc.fontSize(8).fillColor('#ffffff').text(h.toUpperCase(), hx + 6, y + 5, { width: colWidths[i] - 6 });
+        hx += colWidths[i];
+      });
+      doc.font('Satoshi');
+      y += 18;
+    };
+    drawTableHeader();
+
+    rekap.guru.forEach((g, idx) => {
+      if (y + 22 > doc.page.height - margin) { doc.addPage(); y = margin; drawTableHeader(); }
+      if (idx % 2 === 1) doc.rect(margin, y, contentWidth, 22).fill('#f8fafc');
+      let cx = margin;
+      doc.fontSize(8.5).fillColor(INK);
+      [g.nama || '-', g.npy || '-', `${g.hadir}/${g.totalKegiatan}`].forEach((text, i) => {
+        doc.text(text, cx + 6, y + 5, { width: colWidths[i] - 8 });
+        cx += colWidths[i];
+      });
+      doc.font('Satoshi-Bold').fillColor(g.persentaseKehadiran >= 75 ? '#00A34A' : '#EF4444')
+        .text(`${g.persentaseKehadiran}%`, cx + 6, y + 5, { width: colWidths[3] - 8 });
+      doc.font('Satoshi');
+      doc.moveTo(margin, y + 22).lineTo(margin + contentWidth, y + 22).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+      y += 22;
     });
 
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor(BRAND_BLUE_BORDER).lineWidth(1).stroke();
-
-    doc
-      .fontSize(7)
-      .fillColor('#cbd5e1')
-      .text(`Dicetak ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`, margin, doc.page.maxY() - 14, {
-        width: contentWidth,
-        align: 'center',
-        height: 14,
-        lineBreak: false,
-      });
+    doc.end();
+    return done;
   }
 
-  private async renderPage(
-    doc: PDFKit.PDFDocument,
-    g: GuruRekap,
-    tglFmt: string,
-    idx: number,
-    total: number,
-    title: string,
-  ) {
+  async buildGuruRange(rekap: RekapGuruRange): Promise<Buffer> {
+    const { doc, done } = newDoc();
+    doc.addPage();
     const margin = 40;
-    const pageWidth = doc.page.width;
-    const contentWidth = pageWidth - margin * 2;
-    let y = margin;
+    const contentWidth = doc.page.width - margin * 2;
+    const { title, subtitle } = rangeTitle(rekap.mode, rekap.tanggalMulai, rekap.tanggalSelesai);
+    let y = header(doc, title, `${rekap.guruNama ?? '-'} · ${subtitle}`, contentWidth, margin);
 
-    doc.font('Satoshi-Bold').fontSize(9).fillColor('#94a3b8').text(title, margin, y, { characterSpacing: 0.6 });
-    doc.fontSize(9).fillColor('#94a3b8').text(`${idx + 1} / ${total}`, margin, y, { width: contentWidth, align: 'right' });
+    const boxGap = 10;
+    const boxW = (contentWidth - boxGap * 2) / 3;
+    const boxH = 46;
+    statBox(doc, margin, y, boxW, boxH, 'Total Kegiatan', `${rekap.summary.totalKegiatan}`, BRAND_TINT, BRAND);
+    statBox(doc, margin + boxW + boxGap, y, boxW, boxH, 'Diikuti', `${rekap.summary.hadir}`, BRAND_TINT, BRAND);
+    statBox(doc, margin + (boxW + boxGap) * 2, y, boxW, boxH, 'Persentase Kehadiran', `${rekap.summary.persentaseKehadiran}%`, BRAND, '#ffffff');
     doc.font('Satoshi');
-    y += 20;
+    y += boxH + 16;
 
-    doc.font('Satoshi-Bold').fontSize(20).fillColor('#1C2B33').text(g.nama || '-', margin, y, { width: contentWidth });
-    doc.font('Satoshi');
-    y = doc.y + 4;
-    doc.fontSize(11).fillColor('#64748b').text(`NIP: ${g.nip ?? '-'}`, margin, y, { width: contentWidth });
-    y = doc.y + 2;
-    doc.fontSize(11).fillColor('#64748b').text(`Tanggal: ${tglFmt}`, margin, y, { width: contentWidth });
-    y = doc.y + 12;
-
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor('#e2e8f0').lineWidth(1).stroke();
-    y += 16;
-
-    const status = g.status ?? 'ALPA';
-    const label = STATUS_LABEL[status] ?? status;
-    const clr = STATUS_COLOR[status] ?? '#64748b';
-    const bg = STATUS_BG[status] ?? '#F1F5F8';
-    doc.roundedRect(margin, y, 110, 26, 6).fill(bg);
-    doc.font('Satoshi-Bold').fontSize(12).fillColor(clr).text(label, margin, y + 7, { width: 110, align: 'center' });
-    doc.font('Satoshi');
-    y += 40;
-
-    const hasAnyData = !!(
-      g.status ||
-      g.waktuAbsen ||
-      g.waktuPulang ||
-      g.foto ||
-      g.fotoPulang ||
-      g.ttd ||
-      g.ttdPulang ||
-      g.catatan ||
-      g.catatanPulang
-    );
-    if (!hasAnyData) {
-      doc.fontSize(11).fillColor('#94a3b8').text('Tidak ada data absensi untuk tanggal ini.', margin, y, { width: contentWidth });
-      y = doc.y + 16;
-    }
-
-    const rowH = 34;
-    const colW = contentWidth / 2;
-
-    doc.fillColor('#94a3b8').fontSize(8).text('WAKTU HADIR', margin, y, { width: colW - 10 });
-    doc.fillColor('#94a3b8').fontSize(8).text('WAKTU PULANG', margin + colW, y, { width: colW - 10 });
-    doc.fillColor('#334155').fontSize(10).text(g.waktuAbsen || '-', margin, y + 11, { width: colW - 10 });
-    doc.fillColor('#334155').fontSize(10).text(g.waktuPulang || '-', margin + colW, y + 11, { width: colW - 10 });
-    y += rowH;
-
-    const lokasiUrl = googleMapsUrl(g.lokasi);
-    const lokasiPulangUrl = googleMapsUrl(g.lokasiPulang);
-    // Map thumbnails are best-effort — getStaticMapImage() never throws and
-    // resolves to null on any failure (invalid coords, network error,
-    // timeout), so a slow/unreachable tile server can never block PDF
-    // generation. The lokasi text + Google Maps link above always render
-    // regardless of whether the thumbnail comes back.
-    const [mapBuf, mapPulangBuf] = await Promise.all([
-      getStaticMapImage(g.lokasi),
-      getStaticMapImage(g.lokasiPulang),
-    ]);
-    doc.fillColor('#94a3b8').fontSize(8).text('LOKASI HADIR', margin, y, { width: colW - 10 });
-    doc.fillColor('#94a3b8').fontSize(8).text('LOKASI PULANG', margin + colW, y, { width: colW - 10 });
-    doc
-      .fillColor(lokasiUrl ? '#0064E0' : '#334155')
-      .fontSize(10)
-      .text(g.lokasi || '-', margin, y + 11, {
-        width: colW - 10,
-        underline: !!lokasiUrl,
-        link: lokasiUrl ?? undefined,
+    const headers = ['Tanggal', 'Kegiatan', 'Status', 'Jam Absen'];
+    const colFrac = [0.2, 0.4, 0.2, 0.2];
+    const colWidths = colFrac.map((f) => f * contentWidth);
+    const drawTableHeader = () => {
+      doc.roundedRect(margin, y, contentWidth, 18, 3).fill(BRAND);
+      let hx = margin;
+      doc.font('Satoshi-Bold');
+      headers.forEach((h, i) => {
+        doc.fontSize(8).fillColor('#ffffff').text(h.toUpperCase(), hx + 6, y + 5, { width: colWidths[i] - 6 });
+        hx += colWidths[i];
       });
-    doc
-      .fillColor(lokasiPulangUrl ? '#0064E0' : '#334155')
-      .fontSize(10)
-      .text(g.lokasiPulang || '-', margin + colW, y + 11, {
-        width: colW - 10,
-        underline: !!lokasiPulangUrl,
-        link: lokasiPulangUrl ?? undefined,
+      doc.font('Satoshi');
+      y += 18;
+    };
+    drawTableHeader();
+
+    for (const r of rekap.rows) {
+      if (y + 20 > doc.page.height - margin) { doc.addPage(); y = margin; drawTableHeader(); }
+      let cx = margin;
+      doc.fontSize(8.5).fillColor(INK);
+      [r.tanggal, r.kegiatanNama].forEach((text, i) => {
+        doc.text(text, cx + 6, y + 5, { width: colWidths[i] - 8 });
+        cx += colWidths[i];
       });
-
-    const mapY = y + 27;
-    const mapW = 110;
-    const mapH = 82.5;
-    if (mapBuf) {
-      try { doc.image(mapBuf, margin, mapY, { width: mapW, height: mapH }); } catch { /* corrupt/unreadable — skip, text+link above already cover it */ }
-    }
-    if (mapPulangBuf) {
-      try { doc.image(mapPulangBuf, margin + colW, mapY, { width: mapW, height: mapH }); } catch { /* same */ }
-    }
-    y = (mapBuf || mapPulangBuf) ? mapY + mapH + 10 : y + rowH;
-
-    if (g.catatan || g.catatanPulang) {
-      doc.fillColor('#94a3b8').fontSize(8).text('CATATAN', margin, y, { width: contentWidth });
-      y += 11;
-      const catatanText = [g.catatan, g.catatanPulang].filter(Boolean).join('  |  ');
-      doc.fillColor('#334155').fontSize(10).text(catatanText, margin, y, {
-        width: contentWidth,
-        height: 40,
-        ellipsis: true,
-      });
-      y += 40 + 14;
+      doc.fillColor(r.hadir ? '#00D67F' : '#EF4444').text(r.hadir ? 'Hadir' : 'Tidak Hadir', cx + 6, y + 5, { width: colWidths[2] - 8 });
+      cx += colWidths[2];
+      doc.fillColor(INK).text(r.waktuAbsen || '-', cx + 6, y + 5, { width: colWidths[3] - 8 });
+      doc.moveTo(margin, y + 20).lineTo(margin + contentWidth, y + 20).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+      y += 20;
     }
 
-    y += 6;
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor('#e2e8f0').lineWidth(1).stroke();
-    y += 16;
-
-    doc.font('Satoshi-Bold').fontSize(11).fillColor('#1C2B33').text('Dokumentasi', margin, y);
-    doc.font('Satoshi');
-    y = doc.y + 10;
-
-    const gap = 12;
-    const boxW = (contentWidth - gap) / 2;
-    const boxH = 170;
-
-    const [fotoBuf, fotoPulangBuf] = await Promise.all([readFotoBuffer(g.foto), readFotoBuffer(g.fotoPulang)]);
-    const ttdBuf = decodeTtdBuffer(g.ttd);
-    const ttdPulangBuf = decodeTtdBuffer(g.ttdPulang);
-
-    this.drawMediaBox(doc, margin, y, boxW, boxH, 'Foto Hadir', fotoBuf, 'Foto tidak tersedia');
-    this.drawMediaBox(doc, margin + boxW + gap, y, boxW, boxH, 'Foto Pulang', fotoPulangBuf, 'Foto tidak tersedia');
-    y += boxH + gap;
-
-    const ttdBoxH = 120;
-    this.drawMediaBox(doc, margin, y, boxW, ttdBoxH, 'Tanda Tangan Hadir', ttdBuf, 'TTD tidak tersedia', true);
-    this.drawMediaBox(doc, margin + boxW + gap, y, boxW, ttdBoxH, 'Tanda Tangan Pulang', ttdPulangBuf, 'TTD tidak tersedia', true);
-
-    doc
-      .fontSize(7)
-      .fillColor('#cbd5e1')
-      .text(`Dicetak ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`, margin, doc.page.maxY() - 14, {
-        width: contentWidth,
-        align: 'center',
-        height: 14,
-        lineBreak: false,
-      });
-  }
-
-  private drawMediaBox(
-    doc: PDFKit.PDFDocument,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    label: string,
-    buffer: Buffer | null,
-    placeholder: string,
-    whiteBg = false,
-  ) {
-    doc.roundedRect(x, y, w, h, 8).fillAndStroke(whiteBg ? '#ffffff' : '#f8fafc', '#e2e8f0');
-    doc.fontSize(8).fillColor('#94a3b8').text(label.toUpperCase(), x + 10, y + 8, { width: w - 20 });
-
-    const imgTop = y + 22;
-    const imgH = h - 30;
-    if (buffer) {
-      try {
-        doc.image(buffer, x + 10, imgTop, { fit: [w - 20, imgH], align: 'center', valign: 'center' });
-        return;
-      } catch {
-        // fall through to placeholder — unreadable/corrupt/unsupported image
-      }
-    }
-    doc.fontSize(9).fillColor('#cbd5e1').text(placeholder, x + 10, y + h / 2 - 5, { width: w - 20, align: 'center' });
+    doc.end();
+    return done;
   }
 }

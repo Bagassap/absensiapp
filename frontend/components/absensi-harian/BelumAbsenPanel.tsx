@@ -2,69 +2,56 @@
 
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PartyPopper, Search, Copy, Check, X, Clock, Info, MinusCircle, AlertCircle, Users } from "lucide-react";
-import { avatarColor, PULANG_CFG, DASHBOARD_GRADIENTS, DASHBOARD_ACCENT, DASHBOARD_PASTEL } from "./shared";
+import { PartyPopper, Search, Copy, Check, X, Clock, AlertCircle, Info, Users } from "lucide-react";
+import { avatarColor, DASHBOARD_GRADIENTS, DASHBOARD_ACCENT, DASHBOARD_PASTEL } from "./shared";
 import { Avatar } from "@/components/shared/Avatar";
 import { useToast } from "@/components/shared/ToastSystem";
-import type { GuruAbsensi } from "./types";
+import type { AbsensiKegiatanRow, RekapKegiatanHarian } from "./types";
 
-// waktuAbsen is stored as an already-formatted "HH.mm" clock string (set via
-// toLocaleTimeString at check-in time), not an ISO datetime — re-parsing it
-// with `new Date()` produces Invalid Date.
-function formatJam(waktu?: string | null) {
-  return waktu && waktu.trim() ? waktu : "-";
-}
+type GuruBasic = { guruId: string; nama: string; nip: string | null; fotoProfil: string | null };
 
-// Small white stat-card trigger: gradient circular icon badge on the left,
-// big count + small label on the right.
 function StatTrigger({
-  title, icon: Icon, gradient, accent, items, total, hint, onOpen,
+  title, caption, gradient, accent, belumCount, total, onOpen,
 }: {
   title: string;
-  icon: React.ElementType;
+  caption: string;
   gradient: string;
   accent: string;
-  items: GuruAbsensi[];
+  belumCount: number;
   total: number;
-  hint: string;
   onOpen: () => void;
 }) {
-  const pct = total > 0 ? Math.round((items.length / total) * 100) : 0;
+  const pct = total > 0 ? Math.round((belumCount / total) * 100) : 0;
   return (
     <motion.button type="button" onClick={onOpen}
       whileHover={{ y: -2, scale: 1.01 }} whileTap={{ scale: 0.98 }}
       className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-sm transition-shadow hover:shadow-md dark:bg-slate-800 dark:shadow-none">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: gradient }}>
-        <Icon size={17} className="text-white" />
+        <Clock size={17} className="text-white" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-1.5">
-          <p className="text-xl font-extrabold tabular-nums text-slate-800 dark:text-white">{items.length}</p>
+          <p className="text-xl font-extrabold tabular-nums text-slate-800 dark:text-white">{belumCount}</p>
           <span className="text-[10px] font-bold" style={{ color: accent }}>{pct}%</span>
         </div>
-        <p className="truncate text-[11px] font-semibold text-slate-400 dark:text-slate-500">{title}</p>
-        <p className="mt-0.5 truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">
-          dari {total} guru hari ini
-        </p>
+        <p className="truncate text-[11px] font-semibold text-slate-400 dark:text-slate-500">Belum absen · {title}</p>
+        <p className="mt-0.5 truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">{caption}</p>
         <div className="mt-1.5 h-1 w-full rounded-full bg-slate-100 dark:bg-slate-700">
           <div className="h-1 rounded-full transition-all" style={{ width: `${pct}%`, background: gradient }} />
         </div>
-        <p className="mt-1.5 truncate text-[10px] font-semibold" style={{ color: accent }}>{hint}</p>
       </div>
     </motion.button>
   );
 }
 
 function DetailModal({
-  title, icon: Icon, headerBg, iconColor, emptyMessage, items, mode, onClose,
+  title, headerBg, iconColor, emptyMessage, items, onClose,
 }: {
   title: string;
-  icon: React.ElementType;
   headerBg: string;
   iconColor: string;
   emptyMessage: string;
-  items: GuruAbsensi[];
-  mode: "hadir" | "pulang";
+  items: GuruBasic[];
   onClose: () => void;
 }) {
   const toast = useToast();
@@ -99,7 +86,7 @@ function DetailModal({
         <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-4" style={{ backgroundColor: headerBg }}>
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white">
-              <Icon size={17} style={{ color: iconColor }} />
+              <Clock size={17} style={{ color: iconColor }} />
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-extrabold" style={{ color: iconColor }}>{title}</p>
@@ -155,19 +142,9 @@ function DetailModal({
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{g.nama}</p>
-                      {mode === "pulang" ? (
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                          <Clock size={10} className="shrink-0" /> Hadir pukul {formatJam(g.waktuAbsen)}
-                        </p>
-                      ) : g.status === "ALPA" ? (
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] font-medium text-red-400">
-                          <MinusCircle size={10} className="shrink-0" /> Ditandai alpa
-                        </p>
-                      ) : (
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                          <AlertCircle size={10} className="shrink-0" /> Belum ada catatan absen
-                        </p>
-                      )}
+                      <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                        <AlertCircle size={10} className="shrink-0" /> Belum absen kegiatan ini
+                      </p>
                     </div>
                     <span className="shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: headerBg, color: iconColor }}>
                       {g.nip ?? "—"}
@@ -183,62 +160,59 @@ function DetailModal({
   );
 }
 
-export function BelumAbsenPanel({ guruList }: { guruList: GuruAbsensi[] }) {
-  const [activeModal, setActiveModal] = useState<"hadir" | "pulang" | null>(null);
+export function BelumAbsenPanel({ rekap, guruRoster }: { rekap: RekapKegiatanHarian; guruRoster: GuruBasic[] }) {
+  const [activeKegiatanId, setActiveKegiatanId] = useState<string | null>(null);
 
-  const belumHadir = guruList.filter((g) => !g.status || g.status === "ALPA");
-  const belumPulang = guruList.filter((g) => !g.waktuPulang);
-  const hadirIdx = 3; // biru terang
-  const pulangIdx = 2; // red
+  const belumByKegiatan = useMemo(() => {
+    const map = new Map<string, GuruBasic[]>();
+    for (const k of rekap.kegiatan) {
+      const submittedIds = new Set(rekap.rows.filter((r) => r.kegiatanId === k.id).map((r) => r.guruId));
+      map.set(k.id, guruRoster.filter((g) => !submittedIds.has(g.guruId)));
+    }
+    return map;
+  }, [rekap, guruRoster]);
+
+  if (rekap.kegiatan.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 rounded-2xl bg-white p-6 text-center dark:bg-slate-800">
+        <PartyPopper size={22} className="text-slate-300" />
+        <p className="text-xs font-semibold text-slate-400">Belum ada kegiatan hari ini</p>
+      </div>
+    );
+  }
+
+  const activeKegiatan = rekap.kegiatan.find((k) => k.id === activeKegiatanId) ?? null;
 
   return (
     <>
       <div className="flex h-full flex-col justify-center gap-3">
-        <StatTrigger
-          title="Belum Absen Hadir"
-          icon={Clock}
-          gradient={DASHBOARD_GRADIENTS[hadirIdx]}
-          accent={DASHBOARD_ACCENT[hadirIdx]}
-          items={belumHadir}
-          total={guruList.length}
-          hint="Perlu tindak lanjut segera →"
-          onOpen={() => setActiveModal("hadir")}
-        />
-        <StatTrigger
-          title="Belum Absen Pulang"
-          icon={PULANG_CFG.icon}
-          gradient={DASHBOARD_GRADIENTS[pulangIdx]}
-          accent={DASHBOARD_ACCENT[pulangIdx]}
-          items={belumPulang}
-          total={guruList.length}
-          hint="Klik untuk kirim pengingat →"
-          onOpen={() => setActiveModal("pulang")}
-        />
+        {rekap.kegiatan.map((k, i) => {
+          const belum = belumByKegiatan.get(k.id) ?? [];
+          const idx = i % DASHBOARD_GRADIENTS.length;
+          return (
+            <StatTrigger
+              key={k.id}
+              title={k.nama}
+              caption={`${k.jamLabel} · dari ${guruRoster.length} guru`}
+              gradient={DASHBOARD_GRADIENTS[idx]}
+              accent={DASHBOARD_ACCENT[idx]}
+              belumCount={belum.length}
+              total={guruRoster.length}
+              onOpen={() => setActiveKegiatanId(k.id)}
+            />
+          );
+        })}
       </div>
 
       <AnimatePresence>
-        {activeModal === "hadir" && (
+        {activeKegiatan && (
           <DetailModal
-            title="Guru Belum Absen Hadir"
-            icon={Clock}
-            headerBg={DASHBOARD_PASTEL[hadirIdx]}
-            iconColor={DASHBOARD_ACCENT[hadirIdx]}
-            emptyMessage="Semua guru sudah absen hadir!"
-            items={belumHadir}
-            mode="hadir"
-            onClose={() => setActiveModal(null)}
-          />
-        )}
-        {activeModal === "pulang" && (
-          <DetailModal
-            title="Guru Belum Absen Pulang"
-            icon={PULANG_CFG.icon}
-            headerBg={DASHBOARD_PASTEL[pulangIdx]}
-            iconColor={DASHBOARD_ACCENT[pulangIdx]}
-            emptyMessage="Semua guru sudah absen pulang!"
-            items={belumPulang}
-            mode="pulang"
-            onClose={() => setActiveModal(null)}
+            title={`Belum Absen — ${activeKegiatan.nama}`}
+            headerBg={DASHBOARD_PASTEL[0]}
+            iconColor={DASHBOARD_ACCENT[0]}
+            emptyMessage="Semua guru sudah absen kegiatan ini!"
+            items={belumByKegiatan.get(activeKegiatan.id) ?? []}
+            onClose={() => setActiveKegiatanId(null)}
           />
         )}
       </AnimatePresence>

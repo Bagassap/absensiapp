@@ -81,32 +81,32 @@ const THEME = {
     label:       "Gagal",
   },
   warning: {
-    headerBg:    "#F4FFD9",
-    blob1:       "rgba(195,248,74,0.35)",
-    blob2:       "rgba(195,248,74,0.22)",
-    ring1:       "rgba(195,248,74,0.28)",
-    ring2:       "rgba(195,248,74,0.16)",
-    iconBg:      "#1C2B33",
-    iconShadow:  "0 16px 40px rgba(28,43,51,0.35)",
-    bar:         "#C3F84A",
-    btnBg:       "#C3F84A",
-    btnShadow:   "0 8px 24px rgba(195,248,74,0.45)",
-    dotColor:    "#C3F84A",
+    headerBg:    "#EFFEEC",
+    blob1:       "rgba(0, 200, 83,0.35)",
+    blob2:       "rgba(0, 200, 83,0.22)",
+    ring1:       "rgba(0, 200, 83,0.28)",
+    ring2:       "rgba(0, 200, 83,0.16)",
+    iconBg:      "#013920",
+    iconShadow:  "0 16px 40px rgba(0, 0, 0,0.35)",
+    bar:         "#00C853",
+    btnBg:       "#00C853",
+    btnShadow:   "0 8px 24px rgba(0, 200, 83,0.45)",
+    dotColor:    "#00C853",
     icon:        AlertTriangle,
     label:       "Perhatian",
   },
   info: {
-    headerBg:    "#EAF3FF",
-    blob1:       "rgba(0,130,251,0.22)",
-    blob2:       "rgba(0,130,251,0.14)",
-    ring1:       "rgba(0,130,251,0.18)",
-    ring2:       "rgba(0,130,251,0.10)",
-    iconBg:      "#0064E0",
-    iconShadow:  "0 16px 40px rgba(0,130,251,0.55)",
-    bar:         "#0064E0",
-    btnBg:       "#0064E0",
-    btnShadow:   "0 8px 24px rgba(0,130,251,0.45)",
-    dotColor:    "#0082FB",
+    headerBg:    "#FFF7E4",
+    blob1:       "rgba(0, 200, 83,0.22)",
+    blob2:       "rgba(0, 200, 83,0.14)",
+    ring1:       "rgba(0, 200, 83,0.18)",
+    ring2:       "rgba(0, 200, 83,0.10)",
+    iconBg:      "#013920",
+    iconShadow:  "0 16px 40px rgba(0, 200, 83,0.55)",
+    bar:         "#013920",
+    btnBg:       "#013920",
+    btnShadow:   "0 8px 24px rgba(0, 200, 83,0.45)",
+    dotColor:    "#00C853",
     icon:        Info,
     label:       "Informasi",
   },
@@ -140,8 +140,8 @@ function NotificationCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: (
 
   const handleEnd = useCallback(() => onDismiss(toast.id), [toast.id, onDismiss]);
 
-  const cardBg     = isDark ? "#1C2B33" : "#ffffff";
-  const titleColor = isDark ? "#F1F5F8" : "#1C2B33";
+  const cardBg     = isDark ? "#1e293b" : "#ffffff";
+  const titleColor = isDark ? "#FFF7E4" : "#000000";
   const descColor  = isDark ? "#94a3b8" : "#64748b";
   const divider    = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
   const headerBg   = isDark ? "rgba(30,41,59,0)" : theme.headerBg;
@@ -304,7 +304,7 @@ function NotificationCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: (
             whileTap={{ scale: 0.97 }}
             onClick={() => onDismiss(toast.id)}
             className="mt-5 w-full rounded-2xl py-3 text-sm font-bold"
-            style={{ background: theme.btnBg, color: theme.btnBg === "#C3F84A" ? "#1C2B33" : "#FFFFFF", boxShadow: `0 6px 20px ${theme.blob1}` }}
+            style={{ background: theme.btnBg, color: theme.btnBg === "#00C853" ? "#000000" : "#FFFFFF", boxShadow: `0 6px 20px ${theme.blob1}` }}
           >
             Tutup
           </motion.button>
@@ -332,11 +332,11 @@ function NotificationCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: (
 function ConfirmDialog({ item, onClose }: { item: ConfirmItem; onClose: (val: boolean) => void }) {
   const isDark = useDarkMode();
 
-  const cardBg     = isDark ? "#1C2B33" : "#ffffff";
-  const titleColor = isDark ? "#F1F5F8" : "#1C2B33";
+  const cardBg     = isDark ? "#1e293b" : "#ffffff";
+  const titleColor = isDark ? "#FFF7E4" : "#000000";
   const descColor  = isDark ? "#94a3b8" : "#64748b";
   const divider    = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
-  const cancelBg   = isDark ? "rgba(255,255,255,0.08)" : "#F1F5F8";
+  const cancelBg   = isDark ? "rgba(255,255,255,0.08)" : "#FFF7E4";
   const cancelText = isDark ? "#94a3b8" : "#64748b";
   const headerBg   = isDark ? "rgba(255,255,255,0.03)" : "#FEE9EA";
 

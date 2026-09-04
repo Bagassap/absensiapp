@@ -1,54 +1,61 @@
-export type StatusAbsensi = "HADIR" | "IZIN" | "SAKIT" | "ALPA";
-export type FilterAbsensi = StatusAbsensi | "PULANG";
-export type AbsenWindow = "HADIR" | "PULANG" | "BOTH" | "CLOSED";
+export type KegiatanWindow = "BELUM_MULAI" | "BUKA" | "TUTUP";
 
-export type GuruAbsensi = {
-  guruId: string;
-  userId?: string | null;
+export type Kegiatan = {
+  id: string;
   nama: string;
-  nip?: string | null;
-  fotoProfil?: string | null;
-  status: StatusAbsensi | null;
-  waktuAbsen?: string | null;
-  lokasi?: string | null;
-  catatan?: string | null;
-  ttd?: string | null;
-  foto?: string | null;
-  waktuPulang?: string | null;
-  lokasiPulang?: string | null;
-  catatanPulang?: string | null;
-  ttdPulang?: string | null;
-  fotoPulang?: string | null;
-};
-
-export type RekapGuru = {
   tanggal: string;
-  rekap: Record<StatusAbsensi, number>;
-  pulangCount: number;
-  guru: GuruAbsensi[];
+  jamMulai: number;
+  jamSelesai: number;
+  keterangan: string | null;
+  window: KegiatanWindow;
 };
 
-export type PeriodeLaporan = "mingguan" | "bulanan";
+export type KegiatanUntukGuru = Kegiatan & {
+  jamLabel: string;
+  sudahAbsen: boolean;
+  waktuAbsen: string | null;
+  catatan: string | null;
+  status: "HADIR" | "IZIN" | null;
+};
 
-export type LaporanSeringTidakHadirRow = {
+export type AbsensiKegiatanRow = {
+  id: string;
   guruId: string;
   nama: string | null;
   nip: string | null;
   fotoProfil: string | null;
-  summary: {
-    HADIR: number;
-    IZIN: number;
-    SAKIT: number;
-    ALPA: number;
-    totalHariEfektif: number;
-    persentaseKehadiran: number;
-  };
+  kegiatanId: string;
+  kegiatanNama: string;
+  waktuAbsen: string;
+  lokasi: string;
+  foto: string;
+  ttd: string;
+  verified: boolean;
+  verifiedAt: string | null;
+  catatan: string | null;
+  status: "HADIR" | "IZIN";
 };
 
-export type LaporanSeringTidakHadir = {
+export type RekapKegiatanHarian = {
+  tanggal: string;
+  kegiatan: { id: string; nama: string; jamMulai: number; jamSelesai: number; jamLabel: string; keterangan: string | null; window: KegiatanWindow; jumlahAbsen: number; guruTotal: number }[];
+  rows: AbsensiKegiatanRow[];
+};
+
+export type PeriodeLaporan = "mingguan" | "bulanan";
+
+export type LaporanRendahKehadiranRow = {
+  guruId: string;
+  nama: string | null;
+  nip: string | null;
+  fotoProfil: string | null;
+  summary: { hadir: number; totalKegiatan: number; tidakHadir: number; persentaseKehadiran: number };
+};
+
+export type LaporanRendahKehadiran = {
   periode: PeriodeLaporan;
   tanggalMulai: string;
   tanggalSelesai: string;
-  tanggalList: string[];
-  guru: LaporanSeringTidakHadirRow[];
+  totalKegiatan: number;
+  guru: LaporanRendahKehadiranRow[];
 };

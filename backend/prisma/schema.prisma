@@ -23,6 +23,11 @@ enum StatusPasswordReset {
   SELESAI
 }
 
+enum StatusAbsensiKegiatan {
+  HADIR
+  IZIN
+}
+
 model User {
   id                         String   @id @default(cuid())
   nama                       String
@@ -49,7 +54,8 @@ model User {
 
   passwordResetRequests   PasswordResetRequest[] @relation("PasswordResetRequestUser")
   processedPasswordResets PasswordResetRequest[] @relation("PasswordResetRequestProcessor")
-  jadwalAbsenOverrides    JadwalAbsenOverride[]  @relation("JadwalAbsenOverrideCreator")
+  kegiatanDibuat          Kegiatan[]             @relation("KegiatanCreator")
+  absensiDiverifikasi     AbsensiKegiatan[]      @relation("AbsensiVerifier")
 
   @@index([loginId])
   @@map("users")
@@ -72,27 +78,34 @@ model PasswordResetRequest {
   @@map("password_reset_requests")
 }
 
-// Override jadwal jendela absen (jam buka/tutup Absen Datang & Absen Pulang)
-// untuk SATU tanggal tertentu - menggantikan pola lama "tambah konstanta
-// tanggal hardcode + deploy ulang" di absensi-harian.service.ts. Field yang
-// null berarti "pakai jadwal normal hari itu" untuk batas tersebut; hanya
-// batas yang benar-benar berubah yang perlu diisi (mis. cuma
-// pulangStartMinutes untuk kasus "pulang lebih awal").
-model JadwalAbsenOverride {
-  id                 String   @id @default(cuid())
-  tanggal            String   @unique
-  hadirStartMinutes  Int?
-  hadirEndMinutes    Int?
-  pulangStartMinutes Int?
-  pulangEndMinutes   Int?
-  keterangan         String?
-  createdById        String?
-  createdBy          User?    @relation("JadwalAbsenOverrideCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+// Kegiatan sekolah pada tanggal tertentu (mis. "Upacara", "Rapat Guru") —
+// admin membuat satu per tanggal, masing-masing dengan jendela waktu absen
+// sendiri. Menggantikan JadwalAbsenOverride lama (yang cuma punya SATU
+// jendela hadir + SATU jendela pulang per hari) karena absensi sekarang
+// terikat ke kegiatan spesifik, bukan jam datang/pulang harian.
+//
+// "Apel Pagi" dan "Piket Harian" adalah dua kegiatan berdiri (standing) yang
+// selalu online setiap hari tanpa admin perlu membuatnya manual — lihat
+// ensureStandingKegiatan() di AbsensiHarianService yang otomatis membuatkan
+// baris untuk tanggal berjalan kalau belum ada. Kegiatan lain (Upacara,
+// Rapat, dst) tetap harus disetel manual lewat "Tambah Kegiatan" seperti
+// biasa.
+model Kegiatan {
+  id          String   @id @default(cuid())
+  nama        String
+  tanggal     String
+  jamMulai    Int
+  jamSelesai  Int
+  keterangan  String?
+  createdById String?
+  createdBy   User?    @relation("KegiatanCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  absensi AbsensiKegiatan[]
 
   @@index([tanggal])
-  @@map("jadwal_absen_overrides")
+  @@map("kegiatan")
 }
 
 model Guru {
@@ -105,36 +118,69 @@ model Guru {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  absensiHarian AbsensiHarian[]
+  absensiKegiatan AbsensiKegiatan[]
+  jadwalPiket     JadwalPiket[]
 
   @@map("guru")
 }
 
-// Absensi harian milik guru sendiri (check-in/check-out), bukan absensi
-// siswa — 1 baris per guru per hari.
-model AbsensiHarian {
-  id         String  @id @default(cuid())
-  guruId     String
-  guru       Guru    @relation(fields: [guruId], references: [id])
-  tanggal    String
-  status     String?
-  waktuAbsen String?
-  lokasi     String?
-  foto       String?
-  ttd        String? @db.Text
-  catatan    String?
-
-  waktuPulang   String?
-  lokasiPulang  String?
-  fotoPulang    String?
-  ttdPulang     String? @db.Text
-  catatanPulang String?
+// Jadwal piket harian tendik per hari — 1 baris per (hari, guru), diisi dari
+// "Jadwal_Piket_Tendik_2026-2027.xlsx". Menentukan otomatis di
+// AbsensiHarianService: guru yang punya jadwal piket di hari itu hanya bisa
+// absen "Piket Harian" (bukan "Apel Pagi"), dan sebaliknya guru yang tidak
+// piket hari itu wajib absen "Apel Pagi". `lokasiTugas` ditampilkan sebagai
+// keterangan personal di form absen piket guru ybs.
+model JadwalPiket {
+  id          String @id @default(cuid())
+  hari        String // "SENIN" | "SELASA" | "RABU" | "KAMIS" | "JUMAT"
+  guruId      String
+  guru        Guru   @relation(fields: [guruId], references: [id], onDelete: Cascade)
+  lokasiTugas String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([guruId, tanggal])
-  @@map("absensi_harian")
+  @@unique([hari, guruId])
+  @@map("jadwal_piket")
+}
+
+// Absensi kegiatan milik guru sendiri — 1 baris per guru per kegiatan yang
+// diikuti (bukan 1 per hari): seorang guru bisa absen beberapa kegiatan
+// dalam sehari, masing-masing dengan foto selfie + lokasi + ttd sendiri.
+model AbsensiKegiatan {
+  id         String   @id @default(cuid())
+  guruId     String
+  guru       Guru     @relation(fields: [guruId], references: [id])
+  kegiatanId String
+  kegiatan   Kegiatan @relation(fields: [kegiatanId], references: [id], onDelete: Cascade)
+  waktuAbsen String
+  lokasi     String
+  foto       String
+  ttd        String   @db.Text
+  // Guru tetap wajib foto selfie + lokasi + ttd seperti biasa apa pun
+  // statusnya — "Izin" di sini cuma menandai keterangan kehadirannya,
+  // bukan jalur terpisah tanpa bukti kehadiran.
+  status StatusAbsensiKegiatan @default(HADIR)
+
+  // Admin wajib memverifikasi tiap absensi masuk — badge centang biru di UI
+  // muncul kalau verified true. verifiedById disengaja SetNull (bukan
+  // Cascade) supaya riwayat verifikasi tidak ikut hilang kalau akun admin
+  // yang memverifikasi kelak dihapus.
+  verified     Boolean   @default(false)
+  verifiedAt   DateTime?
+  verifiedById String?
+  verifiedBy   User?     @relation("AbsensiVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  // Catatan dari ketenagaan (HR/admin) yang ditulis saat memverifikasi —
+  // ditampilkan ke admin lain di tabel absensi dan memicu notifikasi ke
+  // guru ybs. Ikut dikosongkan saat verifikasi dibatalkan (lihat
+  // toggleVerifikasi), sama seperti verifiedAt/verifiedById.
+  catatan String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guruId, kegiatanId])
+  @@map("absensi_kegiatan")
 }
 
 model Notification {

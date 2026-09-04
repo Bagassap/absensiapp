@@ -6,9 +6,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { join } from 'path';
+import * as fs from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateGuruDto } from './dto/update-guru.dto';
 import { Role, StatusPasswordReset } from '../../generated/prisma/client';
 import { SUPER_ADMIN_LOGIN_ID } from '../auth/guards/super-admin.guard';
 import * as bcrypt from 'bcrypt';
@@ -17,7 +20,7 @@ const SALT_ROUNDS = 10;
 
 const ROLE_DASHBOARD: Record<string, string> = {
   ADMIN: '/admin/dashboard',
-  GURU: '/guru/dashboard',
+  GURU: '/guru/absensi-harian',
 };
 
 @Injectable()
@@ -143,6 +146,61 @@ export class UsersService {
     return { message: `Akun ${user.nama} diaktifkan kembali` };
   }
 
+  async updateGuru(userId: string, dto: UpdateGuruDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { guru: true } });
+    if (!user || user.role !== Role.GURU || !user.guru) {
+      throw new NotFoundException('Guru tidak ditemukan');
+    }
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(dto.nama !== undefined ? { nama: dto.nama } : {}),
+          ...(dto.loginId !== undefined ? { loginId: dto.loginId } : {}),
+          ...(dto.nip !== undefined || dto.noWa !== undefined
+            ? {
+                guru: {
+                  update: {
+                    ...(dto.nip !== undefined ? { nip: dto.nip || null } : {}),
+                    ...(dto.noWa !== undefined ? { noWa: dto.noWa || null } : {}),
+                  },
+                },
+              }
+            : {}),
+        },
+      });
+      return { message: `Data ${dto.nama ?? user.nama} berhasil diperbarui` };
+    } catch (err) {
+      if ((err as { code?: string }).code === 'P2002') {
+        throw new ConflictException('Login ID/NIP sudah digunakan akun lain');
+      }
+      throw err;
+    }
+  }
+
+  // Admin (Data Guru manager) mengganti foto profil seorang guru — beda dari
+  // AuthService.setFotoProfil yang dipakai guru mengganti fotonya sendiri.
+  async setGuruFoto(userId: string, fotoUrl: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role !== Role.GURU) {
+      throw new NotFoundException('Guru tidak ditemukan');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { fotoProfil: fotoUrl },
+    });
+
+    // Best-effort cleanup of the previous photo file — never block the
+    // response over a stale file staying on disk.
+    if (user.fotoProfil && user.fotoProfil !== fotoUrl) {
+      const oldPath = join(process.cwd(), user.fotoProfil);
+      fs.unlink(oldPath, () => {});
+    }
+
+    return { message: `Foto ${user.nama} berhasil diperbarui`, fotoProfil: updated.fotoProfil };
+  }
+
   async findPasswordResetRequests() {
     return this.prisma.passwordResetRequest.findMany({
       orderBy: { createdAt: 'desc' },
@@ -198,7 +256,7 @@ export class UsersService {
       impersonatedBy: admin.id,
     };
     const token = this.jwtService.sign(payload);
-    const redirectTo = ROLE_DASHBOARD[target.role] ?? '/guru/dashboard';
+    const redirectTo = ROLE_DASHBOARD[target.role] ?? '/guru/absensi-harian';
 
     console.log(
       `[IMPERSONATE] Admin ${admin.nama} masuk sebagai ${target.nama} pada ${new Date().toISOString()}`,

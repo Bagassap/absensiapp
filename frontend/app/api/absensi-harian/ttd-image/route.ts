@@ -11,11 +11,9 @@ export async function GET(request: Request) {
   if (!token) return new NextResponse("Unauthorized", { status: 401 });
 
   const { searchParams } = new URL(request.url);
-  const guruId = searchParams.get("guruId") ?? "";
-  const tanggal = searchParams.get("tanggal") ?? "";
-  const tipe = searchParams.get("tipe") ?? "hadir";
+  const id = searchParams.get("id") ?? "";
 
-  const qs = new URLSearchParams({ guruId, tanggal, tipe });
+  const qs = new URLSearchParams({ id });
 
   let backendRes: Response;
   try {

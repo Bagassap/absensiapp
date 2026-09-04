@@ -24,7 +24,7 @@ function mimeFileFilter(allowed: string[]): MulterOptions['fileFilter'] {
 
 export const imageUploadOptions: Pick<MulterOptions, 'fileFilter' | 'limits'> = {
   fileFilter: mimeFileFilter(IMAGE_MIME_TYPES),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
 };
 
 export const documentUploadOptions: Pick<MulterOptions, 'fileFilter' | 'limits'> = {

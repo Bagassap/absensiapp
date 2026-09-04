@@ -84,26 +84,24 @@ async function main() {
   console.log(`  ${'TOTAL'.padEnd(16)} : ${totalCount} file, ${fmtMB(totalBytes)}`);
 
   // --- TTD base64 stored in Postgres (separate from disk files) ---
-  const ttdRows = await prisma.absensiHarian.findMany({ select: { ttd: true, ttdPulang: true } });
+  const ttdRows = await prisma.absensiKegiatan.findMany({ select: { ttd: true } });
   let ttdBytes = 0;
   let ttdCount = 0;
   for (const r of ttdRows) {
     if (r.ttd) { ttdBytes += r.ttd.length; ttdCount++; }
-    if (r.ttdPulang) { ttdBytes += r.ttdPulang.length; ttdCount++; }
   }
   const dbSizeRow = await prisma.$queryRawUnsafe<{ size: string }[]>(
     'SELECT pg_size_pretty(pg_database_size(current_database())) as size',
   );
   console.log(`\nTanda tangan (TTD) — disimpan sebagai base64 di database, BUKAN file di uploads/:`);
-  console.log(`  ${ttdCount} tanda tangan, ~${fmtMB(ttdBytes)} di dalam tabel absensi_harian`);
+  console.log(`  ${ttdCount} tanda tangan, ~${fmtMB(ttdBytes)} di dalam tabel absensi_kegiatan`);
   console.log(`  Ukuran total database saat ini: ${dbSizeRow[0]?.size ?? 'unknown'}`);
 
   // --- Orphaned files (on disk, not referenced by any DB row) ---
-  const absensiRows = await prisma.absensiHarian.findMany({ select: { foto: true, fotoPulang: true } });
+  const absensiRows = await prisma.absensiKegiatan.findMany({ select: { foto: true } });
   const referenced = new Set<string>();
   for (const r of absensiRows) {
     if (r.foto) referenced.add(basename(r.foto));
-    if (r.fotoPulang) referenced.add(basename(r.fotoPulang));
   }
   const harianDir = join(UPLOADS_ROOT, 'absensi-harian');
   const harianFiles = await fs.readdir(harianDir).catch(() => [] as string[]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { motion, type Variants } from "framer-motion";
 import Cropper, { type Area } from "react-easy-crop";
 import { Loader2, Upload, RotateCcw, ImagePlus } from "lucide-react";
@@ -33,6 +33,32 @@ export function LengkapiFotoProfilForm() {
     setCroppedAreaPixels(areaPixels);
   }, []);
 
+  // Self-heals a stale session cookie: the gate that sends a user here is
+  // baked into their JWT at login time, so a device that's been logged in
+  // since before a photo was uploaded (elsewhere, or in an earlier session
+  // on the same device) keeps landing here even though the photo already
+  // exists in the DB — the middleware only ever reads the JWT's own claims,
+  // never the DB, so navigating to another page alone would just bounce
+  // back here with the same stale claim. Re-check the live account state on
+  // mount and, if a photo is already on file, refresh the session cookie
+  // (via /api/auth/refresh, which re-signs the JWT from current DB state)
+  // before redirecting — otherwise the redirect target's middleware check
+  // would still see the old "no photo" claim and send the user right back.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then(async (data) => {
+        if (cancelled || !data?.fotoProfil) return;
+        await fetch("/api/auth/refresh", { method: "POST" }).catch(() => {});
+        if (!cancelled) window.location.replace("/dashboard");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -42,11 +68,10 @@ export function LengkapiFotoProfilForm() {
       setError("Format file harus JPG, PNG, atau WEBP.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Ukuran file maksimal 5MB.");
-      return;
-    }
-
+    // Sengaja tanpa batas ukuran di sini — foto asli dari galeri HP modern
+    // (kamera 48MP+, HDR, dst.) bisa belasan MB, tapi getCroppedImg() di
+    // bawah selalu mengompresnya ke ≤1MB sebelum diunggah, jadi tidak perlu
+    // ditolak lebih dulu di sini.
     setError(null);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
@@ -96,7 +121,6 @@ export function LengkapiFotoProfilForm() {
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        capture="user"
         className="hidden"
         onChange={handleFile}
       />
@@ -115,7 +139,7 @@ export function LengkapiFotoProfilForm() {
           </div>
           <div>
             <p className="text-sm font-semibold text-black/80">Pilih foto dari galeri atau kamera</p>
-            <p className="mt-1 text-xs text-black/45">JPG, PNG, atau WEBP — maksimal 5MB</p>
+            <p className="mt-1 text-xs text-black/45">JPG, PNG, atau WEBP — otomatis dikompres</p>
           </div>
         </motion.button>
       ) : (
@@ -143,7 +167,7 @@ export function LengkapiFotoProfilForm() {
               step={0.01}
               value={zoom}
               onChange={(e) => setZoom(Number(e.target.value))}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-black/10 accent-[#0082FB]"
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-black/10 accent-[#00C853]"
             />
           </div>
 
@@ -164,7 +188,7 @@ export function LengkapiFotoProfilForm() {
         <motion.p
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-lg border-l-4 border-l-[#EF4444] bg-[#1C2B33] px-3 py-2 text-sm font-medium text-white"
+          className="rounded-lg border-l-4 border-l-[#EF4444] bg-[#013920] px-3 py-2 text-sm font-medium text-white"
         >
           {error}
         </motion.p>
@@ -177,8 +201,8 @@ export function LengkapiFotoProfilForm() {
         disabled={!imageSrc || !croppedAreaPixels || loading}
         whileHover={imageSrc ? { scale: 1.02 } : undefined}
         whileTap={imageSrc ? { scale: 0.98 } : undefined}
-        className="mt-1 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(0,130,251,0.55)] transition-all hover:shadow-[0_14px_40px_-8px_rgba(0,130,251,0.70)] hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ background: "#0082FB" }}
+        className="mt-1 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(0, 200, 83,0.55)] transition-all hover:shadow-[0_14px_40px_-8px_rgba(0, 200, 83,0.70)] hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-50"
+        style={{ background: "#00C853" }}
       >
         {loading ? (
           <>

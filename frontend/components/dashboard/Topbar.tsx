@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import {
-  Menu, Search, Sun, Moon, Bell, ChevronDown, LogOut, X,
-  LayoutDashboard, UserCircle, CheckCircle2, Info, AlertTriangle,
+  Menu, Bell, ChevronDown, LogOut,
+  UserCircle, CheckCircle2, Info, AlertTriangle,
   CheckCheck, Clock,
 } from "lucide-react";
 import type { UserPayload } from "@/lib/auth";
@@ -17,7 +18,9 @@ import { LiveClock } from "@/components/shared/LiveClock";
 
 const PAGE_TITLES: Record<string, [string, string]> = {
   dashboard:        ["Dashboard",       "Ringkasan aktivitas Anda"],
-  "absensi-harian": ["Absensi Harian",  "Presensi kehadiran harian guru"],
+  "absensi-harian": ["Absensi Kegiatan",  "Presensi kehadiran per kegiatan"],
+  "absensi-saya":   ["Absensi Saya",    "Catat kehadiran Anda untuk kegiatan hari ini"],
+  "data-guru":      ["Data Guru",       "Kelola akun dan status guru"],
   profil:           ["Profil Saya",     "Informasi dan pengaturan akun"],
 };
 
@@ -32,22 +35,6 @@ function getPageInfo(pathname: string) {
         subtitle: "",
       };
 }
-
-
-type SearchItem = {
-  href: string;
-  label: string;
-  desc: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  roles: string[];
-};
-
-const SEARCH_ITEMS: SearchItem[] = [
-  { href: "/admin/dashboard",            label: "Dashboard",          desc: "Ringkasan aktivitas",           icon: LayoutDashboard, roles: ["ADMIN"] },
-  { href: "/admin/absensi-harian",       label: "Absensi Harian",     desc: "Pantau absensi harian guru",    icon: CheckCircle2,    roles: ["ADMIN"] },
-  { href: "/guru/dashboard",             label: "Dashboard",          desc: "Ringkasan aktivitas",           icon: LayoutDashboard, roles: ["GURU"] },
-  { href: "/guru/absensi-harian",        label: "Absensi Harian",     desc: "Absensi harian Anda",           icon: CheckCircle2,    roles: ["GURU"] },
-];
 
 
 type NotifType = "info" | "success" | "warning" | "error";
@@ -68,9 +55,9 @@ const NOTIF_TYPE_STYLE: Record<ApiNotifType, NotifType> = {
 };
 
 const NOTIF_STYLE: Record<NotifType, { bg: string; color: string }> = {
-  info:    { bg: "#EAF3FF", color: "#0082FB" },
+  info:    { bg: "#FFF7E4", color: "#000000" },
   success: { bg: "#E3FBF0", color: "#00D67F" },
-  warning: { bg: "#F4FFD9", color: "#8A9E1F" },
+  warning: { bg: "#EFFEEC", color: "#000000" },
   error:   { bg: "#FEE9EA", color: "#EF4444" },
 };
 
@@ -83,82 +70,30 @@ const NOTIF_ICON: Record<NotifType, React.ComponentType<{ size?: number; style?:
 
 const ROLE_LABEL: Record<string, string> = { ADMIN: "Administrator", GURU: "Guru" };
 
+const BRAND_ACCENT = "#00C853";
+
 
 export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: () => void }) {
   const router   = useRouter();
   const pathname = usePathname();
   const { title, subtitle } = getPageInfo(pathname);
 
-  const [isDark, setIsDark] = useState(false);
-  const [darkMounted, setDarkMounted] = useState(false);
-
-  useEffect(() => {
-    const saved       = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const dark        = saved === "dark" || (!saved && prefersDark);
-    setIsDark(dark);
-    setDarkMounted(true);
-    document.documentElement.classList.toggle("dark", dark);
-  }, []);
-
-  function toggleDark() {
-    const next = !isDark;
-    setIsDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("theme", next ? "dark" : "light");
-  }
-
-  const [searchOpen,  setSearchOpen]  = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedIdx, setSelectedIdx] = useState(0);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  const filteredSearch = SEARCH_ITEMS.filter(
-    (item) =>
-      item.roles.includes(user.role) &&
-      (searchQuery === "" ||
-        item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.desc.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  useEffect(() => { setSelectedIdx(0); }, [searchQuery]);
-
-  useEffect(() => {
-    if (searchOpen) setTimeout(() => searchInputRef.current?.focus(), 50);
-    else { setSearchQuery(""); setSelectedIdx(0); }
-  }, [searchOpen]);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setSearchOpen((v) => !v);
-        return;
-      }
-      if (e.key === "Escape") {
-        setSearchOpen(false);
-        setNotifOpen(false);
-        setDropdownOpen(false);
-        return;
-      }
-      if (!searchOpen) return;
-      if (e.key === "ArrowDown") { e.preventDefault(); setSelectedIdx((i) => Math.min(i + 1, filteredSearch.length - 1)); }
-      else if (e.key === "ArrowUp")  { e.preventDefault(); setSelectedIdx((i) => Math.max(i - 1, 0)); }
-      else if (e.key === "Enter") {
-        e.preventDefault();
-        const item = filteredSearch[selectedIdx];
-        if (item) { setSearchOpen(false); router.push(item.href); }
-      }
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [searchOpen, filteredSearch, selectedIdx]);
-
   const [notifOpen,      setNotifOpen]      = useState(false);
   const [notifications,  setNotifications]  = useState<ApiNotification[]>([]);
   const [notifLoading,   setNotifLoading]   = useState(false);
   const [unreadCount,    setUnreadCount]    = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setNotifOpen(false);
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   // A 401 here means the session cookie is gone or no longer verifiable (expired,
   // or signed under a JWT_SECRET that's since been rotated) — bounce to /login
@@ -246,13 +181,26 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex items-center gap-3 bg-white px-4 py-5 shadow-[0_1px_4px_rgba(0,0,0,0.08)] transition-colors duration-200 dark:bg-[#1C2B33] md:px-5 2xl:px-10">
+      <header className="sticky top-0 z-30 flex items-center gap-3 bg-white px-4 py-5 shadow-[0_1px_4px_rgba(0,0,0,0.08)] transition-colors duration-200 dark:bg-slate-900 md:px-5 2xl:px-10">
         <button
           onClick={onMenuClick}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:bg-slate-700/50 dark:text-slate-400 dark:hover:bg-slate-700 lg:hidden"
         >
           <Menu size={20} />
         </button>
+
+        <div className="flex items-center gap-2 lg:hidden">
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md shadow-blue-900/25 ring-1 ring-black/5"
+            style={{ background: "#FFF7E4" }}
+          >
+            <Image src="/PPLG.png" alt="Absensi" width={16} height={16} className="h-3.5 w-auto" />
+          </div>
+          <span className="flex items-baseline gap-1">
+            <span className="text-[15px] font-black tracking-tight text-[#000000]">Absensi</span>
+            <span className="text-[9px] font-bold tracking-[0.15em] text-slate-400">{user.role}</span>
+          </span>
+        </div>
 
         <div className="hidden xl:block">
           <h1 className="mb-0.5 text-lg font-bold text-slate-800 dark:text-slate-200">{title}</h1>
@@ -266,49 +214,6 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
         <LiveClock variant="topbar" />
 
         <div className="flex items-center gap-2">
-
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="hidden items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-left transition-colors hover:bg-slate-200 dark:bg-slate-700/50 dark:hover:bg-slate-700 md:flex"
-          >
-            <Search size={14} className="shrink-0 text-slate-500 dark:text-slate-400" />
-            <span className="w-32 text-sm text-slate-500 dark:text-slate-400">Cari sesuatu...</span>
-            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-medium text-slate-500 dark:bg-slate-600 dark:text-slate-400">
-              ⌘K
-            </span>
-          </button>
-
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 dark:bg-slate-700/50 dark:text-slate-400 dark:hover:bg-slate-700 md:hidden"
-          >
-            <Search size={16} />
-          </button>
-
-          <div className="flex items-center rounded-full bg-slate-100 p-1 dark:bg-slate-700/50">
-            <button
-              onClick={toggleDark}
-              title="Mode terang"
-              className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${
-                darkMounted && !isDark
-                  ? "bg-white text-primary shadow-sm"
-                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white"
-              }`}
-            >
-              <Sun size={13} />
-            </button>
-            <button
-              onClick={toggleDark}
-              title="Mode gelap"
-              className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${
-                darkMounted && isDark
-                  ? "bg-slate-600 text-primary shadow-sm dark:text-white"
-                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white"
-              }`}
-            >
-              <Moon size={13} />
-            </button>
-          </div>
 
           <div className="relative" ref={notifRef}>
             <button
@@ -330,7 +235,7 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.96 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-[10px] border border-gray-200 bg-white shadow-xl shadow-gray-200/60 dark:border-slate-700 dark:bg-[#1C2B33] dark:shadow-black/30"
+                  className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-[10px] border border-gray-200 bg-white shadow-xl shadow-gray-200/60 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30"
                 >
                   <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-slate-700">
                     <div>
@@ -411,7 +316,7 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
                 src={user.fotoProfil}
                 nama={user.nama}
                 sizePx={28}
-                fallbackBg="#0082FB"
+                fallbackBg="#00C853"
                 textClassName="text-[11px] font-bold"
               />
               <span className="hidden text-sm font-medium text-gray-700 dark:text-slate-200 sm:block">
@@ -430,7 +335,7 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 6, scale: 0.97 }}
                   transition={{ duration: 0.13 }}
-                  className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-[10px] border border-gray-200 bg-white py-2 shadow-xl shadow-gray-200/60 dark:border-slate-700 dark:bg-[#1C2B33] dark:shadow-black/30"
+                  className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-[10px] border border-gray-200 bg-white py-2 shadow-xl shadow-gray-200/60 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30"
                 >
                   <div className="mb-1 border-b border-gray-200 px-4 pb-3 pt-1 dark:border-slate-700">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{user.nama}</p>
@@ -459,119 +364,6 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
           </div>
         </div>
       </header>
-
-      <AnimatePresence>
-        {searchOpen && (
-          <>
-            <motion.div
-              key="search-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
-              onClick={() => setSearchOpen(false)}
-            />
-
-            <motion.div
-              key="search-panel"
-              initial={{ opacity: 0, y: -12, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -12, scale: 0.97 }}
-              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-x-4 top-20 z-50 overflow-hidden rounded-[10px] border border-gray-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-[#1C2B33] sm:left-1/2 sm:right-auto sm:top-24 sm:w-full sm:max-w-lg sm:-translate-x-1/2"
-            >
-              <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3.5 dark:border-slate-700">
-                <Search size={17} className="shrink-0 text-gray-400 dark:text-slate-400" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari menu atau halaman..."
-                  className="flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-slate-500"
-                />
-                {searchQuery ? (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-slate-400 dark:hover:bg-slate-700/50"
-                  >
-                    <X size={14} />
-                  </button>
-                ) : (
-                  <kbd className="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-400 dark:border-slate-700 dark:text-slate-400">
-                    Esc
-                  </kbd>
-                )}
-              </div>
-
-              <div className="max-h-64 overflow-y-auto py-1.5">
-                {filteredSearch.length === 0 ? (
-                  <div className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-400">
-                    Tidak ada hasil untuk &quot;{searchQuery}&quot;
-                  </div>
-                ) : (
-                  filteredSearch.map((item, i) => {
-                    const isSelected = i === selectedIdx;
-                    return (
-                      <button
-                        key={item.href}
-                        onClick={() => { setSearchOpen(false); router.push(item.href); }}
-                        onMouseEnter={() => setSelectedIdx(i)}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-slate-700/50"
-                        style={isSelected ? { backgroundColor: "rgba(0,130,251,0.1)" } : {}}
-                      >
-                        <div
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                            isSelected ? "bg-primary" : "bg-slate-100 dark:bg-slate-700"
-                          }`}
-                        >
-                          <item.icon
-                            size={15}
-                            className={isSelected ? "text-white" : "text-slate-400 dark:text-slate-300"}
-                          />
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className="text-sm font-medium"
-                            style={{ color: isSelected ? "#0082FB" : undefined }}
-                          >
-                            {item.label}
-                          </p>
-                          <p className="truncate text-[11px] text-gray-400 dark:text-slate-400">{item.desc}</p>
-                        </div>
-
-                        {isSelected && (
-                          <kbd className="ml-auto shrink-0 rounded border border-gray-200 px-1.5 py-0.5 text-[9px] font-medium text-gray-400 dark:border-slate-700">
-                            ↵
-                          </kbd>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-
-              <div className="flex items-center gap-4 border-t border-gray-200 px-4 py-2.5 dark:border-slate-700">
-                <span className="text-[10px] text-gray-400 dark:text-slate-600">
-                  <kbd className="mr-0.5 rounded border border-gray-200 px-1 py-0.5 text-[9px] dark:border-slate-700">↑</kbd>
-                  <kbd className="rounded border border-gray-200 px-1 py-0.5 text-[9px] dark:border-slate-700">↓</kbd>
-                  {" "}navigasi
-                </span>
-                <span className="text-[10px] text-gray-400 dark:text-slate-600">
-                  <kbd className="mr-0.5 rounded border border-gray-200 px-1 py-0.5 text-[9px] dark:border-slate-700">↵</kbd>
-                  buka
-                </span>
-                <span className="text-[10px] text-gray-400 dark:text-slate-600">
-                  <kbd className="mr-0.5 rounded border border-gray-200 px-1 py-0.5 text-[9px] dark:border-slate-700">Esc</kbd>
-                  tutup
-                </span>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       {profilOpen && <ProfilSayaModal onClose={() => setProfilOpen(false)} />}
     </>
