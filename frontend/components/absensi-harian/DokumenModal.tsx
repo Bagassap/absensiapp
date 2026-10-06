@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, MapPin, Download, Camera, PenTool, ExternalLink, CalendarCheck2, BadgeCheck, Check, Loader2, StickyNote } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
@@ -59,7 +60,9 @@ export function DokumenModal({ row, tanggal, onClose, onVerifiedChange }: {
     }
   }
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <>
       <AnimatePresence>
         {imgOverlay && (
@@ -301,6 +304,7 @@ export function DokumenModal({ row, tanggal, onClose, onVerifiedChange }: {
           </div>
         </motion.div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

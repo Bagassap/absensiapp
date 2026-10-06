@@ -1,16 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ClipboardCheck, MapPin, Camera, CheckCircle2, Loader2, Clock,
-  FileSignature, ArrowRight, ChevronLeft, CalendarX2, UserCheck, FileText,
-  Check, StickyNote,
+  FileSignature, ArrowRight, ChevronLeft, ChevronRight, CalendarX2, UserCheck, FileText,
+  Check, StickyNote, X, ExternalLink, Play, Lock,
 } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
 import { SignaturePad } from "@/components/absensi-harian/SignaturePad";
 import { CameraCapture } from "@/components/absensi-harian/CameraCapture";
-import { todayJakarta } from "@/components/absensi-harian/shared";
+import { todayJakarta, parseLokasi, resolveMediaSrc, formatTgl } from "@/components/absensi-harian/shared";
 import { StatistikAbsensiChart } from "@/components/absensi-harian/StatistikAbsensiChart";
 import type { KegiatanUntukGuru } from "@/components/absensi-harian/types";
 import { LiveClock } from "@/components/shared/LiveClock";
@@ -44,6 +45,16 @@ export function AbsensiSayaWizard() {
   const [lokasiError, setLokasiError] = useState<string | null>(null);
   const [ttd, setTtd] = useState<string | null>(null);
   const [status, setStatus] = useState<"HADIR" | "IZIN">("HADIR");
+
+  // State khusus menu mobile (lg:hidden) — bottom-sheet multi-step (tiru
+  // tampilan lmspplg's menu Absensi Siswa) terpisah dari step wizard
+  // desktop di atas, tapi mengisi field yang SAMA (fotoFile/lokasi/ttd/
+  // status/selectedId) sehingga submit-nya lewat handleSubmit() yang sama.
+  const [mobileWizardOpen, setMobileWizardOpen] = useState(false);
+  const [mobileStep, setMobileStep] = useState(0);
+  const [mobileDirection, setMobileDirection] = useState(1);
+  const [mobileDetailId, setMobileDetailId] = useState<string | null>(null);
+  const [absensiTab, setAbsensiTab] = useState<"BELUM" | "SUDAH">("BELUM");
 
   const loadKegiatan = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -81,6 +92,13 @@ export function AbsensiSayaWizard() {
     () => kegiatanList.filter((k) => k.window === "BUKA" && !k.sudahAbsen),
     [kegiatanList],
   );
+
+  // Untuk 2 kartu tab "Belum Absen"/"Sudah Absen" di menu mobile — beda
+  // dengan kegiatanBisaAbsen (yang cuma menghitung window BUKA), "belum"
+  // di sini juga mencakup yang sudah TUTUP tapi kelewatan, supaya guru
+  // tetap bisa lihat riwayat kegiatan yang terlewat, bukan cuma yang aktif.
+  const belumList = useMemo(() => kegiatanList.filter((k) => !k.sudahAbsen), [kegiatanList]);
+  const sudahList = useMemo(() => kegiatanList.filter((k) => k.sudahAbsen), [kegiatanList]);
 
   // Beda dengan "tidak ada kegiatan terbuka" (bisa berarti guru kelewatan
   // absen) — kalau SEMUA kegiatan hari ini sudah diabsen, itu kabar baik,
@@ -127,8 +145,8 @@ export function AbsensiSayaWizard() {
   }, []);
 
   useEffect(() => {
-    if (step === "FORM") requestLokasi();
-  }, [step, requestLokasi]);
+    if (step === "FORM" || mobileWizardOpen) requestLokasi();
+  }, [step, mobileWizardOpen, requestLokasi]);
 
   async function processFotoFile(file: File) {
     setCompressingFoto(true);
@@ -161,6 +179,20 @@ export function AbsensiSayaWizard() {
     setTtd(null);
     setSelectedId("");
     setStatus("HADIR");
+    setMobileWizardOpen(false);
+  }
+
+  function openMobileWizard(kegiatanId: string) {
+    setSelectedId(kegiatanId);
+    setFotoFile(null);
+    setFotoPreview(null);
+    setLokasi(null);
+    setLokasiError(null);
+    setTtd(null);
+    setStatus("HADIR");
+    setMobileDirection(1);
+    setMobileStep(0);
+    setMobileWizardOpen(true);
   }
 
   async function handleSubmit() {
@@ -182,7 +214,11 @@ export function AbsensiSayaWizard() {
         const kegiatan = kegiatanList.find((k) => k.id === selectedId) ?? null;
         toast.success("Absensi kegiatan berhasil dicatat!", kegiatan ? kegiatan.nama : "");
         setLastSubmitted(kegiatan);
-        setStep("DONE");
+        if (mobileWizardOpen) {
+          setMobileWizardOpen(false);
+        } else {
+          setStep("DONE");
+        }
         loadKegiatan(true);
         loadStats();
       } else {
@@ -200,7 +236,7 @@ export function AbsensiSayaWizard() {
   return (
     <div className="space-y-5">
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-        className="relative overflow-hidden rounded-2xl p-6"
+        className="relative hidden overflow-hidden rounded-2xl p-6 lg:block"
         style={{ background: "#013920" }}>
         <div className="pointer-events-none absolute -right-10 -top-10 h-60 w-60 rounded-full bg-white/10" />
         <div className="pointer-events-none absolute -bottom-14 right-28 h-52 w-52 rounded-full bg-white/6" />
@@ -220,7 +256,7 @@ export function AbsensiSayaWizard() {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3 lg:gap-8">
+      <div className="hidden lg:grid lg:grid-cols-3 lg:items-start lg:gap-8">
       <div className="lg:col-span-2 overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -263,31 +299,8 @@ export function AbsensiSayaWizard() {
                 </motion.div>
                 <h2 className="mt-5 text-xl font-extrabold text-slate-800 dark:text-white">Sudah Absen</h2>
                 <p className="mt-1.5 max-w-sm text-sm text-slate-400 dark:text-slate-500">
-                  Semua kegiatan hari ini sudah Anda ikuti. Terima kasih!
+                  Semua kegiatan hari ini sudah Anda ikuti. Terima kasih! Lihat rinciannya di bawah.
                 </p>
-                <div className="mt-6 w-full max-w-sm space-y-2 text-left">
-                  {kegiatanList.map((k) => (
-                    <div key={k.id} className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800/60">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-slate-200">{k.nama}</span>
-                        <span className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-extrabold text-white" style={{ backgroundColor: "#3B82F6" }}>
-                          <Check size={10} strokeWidth={3.5} /> {k.waktuAbsen}
-                        </span>
-                      </div>
-                      {k.status === "IZIN" && (
-                        <span className="mt-1.5 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-extrabold text-white" style={{ backgroundColor: "#F59E0B" }}>
-                          Izin
-                        </span>
-                      )}
-                      {k.catatan && (
-                        <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 dark:bg-blue-950/30">
-                          <StickyNote size={12} className="mt-0.5 shrink-0" style={{ color: "#3B82F6" }} />
-                          <p className="text-[11px] leading-snug text-slate-600 dark:text-slate-300">{k.catatan}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
               </motion.div>
             ) : kegiatanBisaAbsen.length === 0 ? (
               <motion.div key="empty" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
@@ -475,6 +488,506 @@ export function AbsensiSayaWizard() {
         )}
       </div>
       </div>
+
+      {/* Selalu tampil terlepas dari step wizard (SELFIE/FORM) atau apakah
+          semua kegiatan hari ini sudah diabsen — sebelumnya catatan dari
+          admin cuma muncul di state "semua sudah absen", jadi kalau guru
+          masih punya kegiatan lain yang belum diabsen hari itu, catatan
+          untuk kegiatan yang SUDAH diverifikasi tidak pernah kelihatan sama
+          sekali di halaman ini (cuma masuk ke notifikasi).
+          Desktop-only (hidden di mobile) — di mobile, tap kartu kegiatan
+          yang sudah selesai membuka MobileDetailSheet yang menampilkan hal
+          yang sama (termasuk catatan), jadi kartu riwayat ini tidak perlu
+          diduplikasi di sana. */}
+      {kegiatanList.some((k) => k.sudahAbsen) && (
+        <div className="hidden rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 lg:block">
+          <h2 className="text-base font-bold text-slate-800 dark:text-white">Riwayat Absensi Hari Ini</h2>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Kegiatan yang sudah Anda absen, termasuk catatan dari Ketenagaan (jika ada)</p>
+          <div className="mt-4 space-y-2">
+            {kegiatanList.filter((k) => k.sudahAbsen).map((k) => (
+              <div key={k.id} className="rounded-2xl border border-slate-100 p-3 dark:border-slate-700">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-slate-200">{k.nama}</span>
+                  <span className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-extrabold text-white" style={{ backgroundColor: "#3B82F6" }}>
+                    <Check size={10} strokeWidth={3.5} /> {k.waktuAbsen}
+                  </span>
+                </div>
+                {k.status === "IZIN" && (
+                  <span className="mt-1.5 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-extrabold text-white" style={{ backgroundColor: "#F59E0B" }}>
+                    Izin
+                  </span>
+                )}
+                {k.catatan && (
+                  <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 dark:bg-blue-950/30">
+                    <StickyNote size={12} className="mt-0.5 shrink-0" style={{ color: "#3B82F6" }} />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#3B82F6" }}>Catatan dari Ketenagaan</p>
+                      <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-slate-300">{k.catatan}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Menu mobile (lg:hidden) — tiru tampilan menu "Absensi Siswa"
+          lmspplg: header hijau full-bleed menyambung ke sheet rounded-t,
+          grid kartu 2 kolom (1 kartu per kegiatan, bukan cuma Datang/
+          Pulang seperti punya mereka karena kegiatan kita jumlahnya
+          dinamis) — tap kartu yang masih terbuka membuka wizard bottom-
+          sheet multi-step, tap kartu yang sudah selesai membuka detail
+          bottom-sheet berisi foto/ttd/lokasi/catatan. */}
+      <div className="relative isolate -m-4 lg:hidden" style={{ background: "#013920" }}>
+        <div className="relative flex items-center justify-center px-4 pb-3 pt-4">
+          <h1 className="text-base font-bold text-white">Absensi Kegiatan</h1>
+        </div>
+        <div className="space-y-4 rounded-t-[28px] bg-[#F1F5F8] p-4 dark:bg-slate-900">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 size={24} className="animate-spin text-[#00C853]" />
+            </div>
+          ) : kegiatanList.length === 0 ? (
+            <div className="flex flex-col items-center rounded-3xl bg-white px-6 py-10 text-center shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:bg-slate-800">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "#EF444418" }}>
+                <CalendarX2 size={24} style={{ color: "#EF4444" }} />
+              </div>
+              <h2 className="mt-3 text-sm font-extrabold text-slate-800 dark:text-white">Belum Ada Kegiatan</h2>
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Belum ada kegiatan yang dijadwalkan admin untuk hari ini.</p>
+            </div>
+          ) : (
+            <>
+              {/* Card utama — kartu hero besar, jam jadi fokus visual utama
+                  (besar & mencolok, variant "hero" LiveClock) supaya
+                  terasa lebih "hidup"/emosional dibanding sekadar pil kecil. */}
+              <div className="relative overflow-hidden rounded-[28px] px-5 py-7 text-center shadow-[0_18px_36px_-14px_rgba(0,0,0,0.45)]" style={{ background: "#013920" }}>
+                <div className="pointer-events-none absolute -right-12 -top-14 h-40 w-40 rounded-full bg-white/8" />
+                <div className="pointer-events-none absolute -bottom-12 -left-10 h-28 w-28 rounded-full bg-white/6" />
+                <div className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl" style={{ background: "#00C85333" }} />
+                <p className="relative text-[10px] font-bold uppercase tracking-[0.25em] text-white/60">{formatTgl(today)}</p>
+                <div className="relative mt-2"><LiveClock variant="hero" /></div>
+                <p className="relative mt-1 text-[10px] font-bold uppercase tracking-widest text-white/40">WIB</p>
+                <p className="relative mt-4 text-xs font-semibold text-white/90">
+                  {sudahList.length} dari {kegiatanList.length} kegiatan sudah Anda ikuti hari ini
+                </p>
+                <div className="relative mx-auto mt-3 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-white/15">
+                  <div className="h-full rounded-full transition-all"
+                    style={{ background: "#00C853", width: `${kegiatanList.length > 0 ? Math.round((sudahList.length / kegiatanList.length) * 100) : 0}%` }} />
+                </div>
+              </div>
+
+              {/* Tab pil tunggal (bukan 2 kartu terpisah) — highlight
+                  bergeser di antara "Belum Absen" / "Sudah Absen", meniru
+                  toggle "Playlist / Descriptions" pada referensi. */}
+              <div className="relative rounded-full bg-white p-1 shadow-[0_2px_6px_rgba(0,0,0,0.06)] dark:bg-slate-800">
+                <motion.div className="absolute inset-y-1 rounded-full" style={{ width: "50%", background: absensiTab === "BELUM" ? "#EF4444" : "#00C853" }}
+                  animate={{ x: absensiTab === "BELUM" ? "0%" : "100%" }} transition={{ type: "spring", damping: 28, stiffness: 300 }} />
+                <div className="relative z-10 grid grid-cols-2">
+                  <button type="button" onClick={() => setAbsensiTab("BELUM")}
+                    className="rounded-full py-2.5 text-center text-xs font-bold transition-colors"
+                    style={{ color: absensiTab === "BELUM" ? "#fff" : "#64748B" }}>
+                    Belum Absen ({belumList.length})
+                  </button>
+                  <button type="button" onClick={() => setAbsensiTab("SUDAH")}
+                    className="rounded-full py-2.5 text-center text-xs font-bold transition-colors"
+                    style={{ color: absensiTab === "SUDAH" ? "#fff" : "#64748B" }}>
+                    Sudah Absen ({sudahList.length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Daftar vertikal (bukan carousel geser) — tiap baris kegiatan
+                  meniru baris "lesson" pada referensi: ikon bulat kiri
+                  (play/lock/check), judul + subjudul, ikon status kanan. */}
+              <div className="rounded-3xl bg-white px-4 dark:bg-slate-800">
+                {(absensiTab === "BELUM" ? belumList : sudahList).length === 0 ? (
+                  <p className="py-8 text-center text-xs font-medium text-slate-400">
+                    {absensiTab === "BELUM" ? "Semua kegiatan hari ini sudah Anda absen." : "Belum ada kegiatan yang Anda absen hari ini."}
+                  </p>
+                ) : (
+                  (absensiTab === "BELUM" ? belumList : sudahList).map((k) => (
+                    <KegiatanListRow key={k.id} k={k}
+                      onAction={() => openMobileWizard(k.id)}
+                      onDetail={() => setMobileDetailId(k.id)}
+                    />
+                  ))
+                )}
+              </div>
+
+              {/* Button bar utama, bentuk pil penuh (stadium) — aksi cepat
+                  absen kegiatan yang paling dekat jamnya, meniru CTA
+                  "Purchase Only - $28" pada referensi. */}
+              <motion.button type="button" whileTap={{ scale: 0.98 }}
+                onClick={() => kegiatanBisaAbsen[0] && openMobileWizard(kegiatanBisaAbsen[0].id)}
+                disabled={kegiatanBisaAbsen.length === 0}
+                className="flex w-full items-center justify-center gap-2 rounded-full py-4 text-sm font-bold text-white shadow-[0_10px_20px_-8px_rgba(239,68,68,0.55)] disabled:opacity-50 disabled:shadow-none"
+                style={{ backgroundColor: "#EF4444" }}>
+                <Clock size={16} />
+                {kegiatanBisaAbsen.length === 0 ? "Tidak Ada Kegiatan Dibuka" : `Absensi Sekarang — ${kegiatanBisaAbsen[0].nama}`}
+              </motion.button>
+            </>
+          )}
+
+          <MobileKegiatanWizard
+            open={mobileWizardOpen}
+            onClose={() => { if (!submitting) setMobileWizardOpen(false); }}
+            kegiatan={selectedKegiatan}
+            step={mobileStep} setStep={setMobileStep}
+            direction={mobileDirection} setDirection={setMobileDirection}
+            fotoPreview={fotoPreview} onCaptureFoto={processFotoFile} compressingFoto={compressingFoto}
+            onFotoClear={() => { setFotoFile(null); setFotoPreview(null); }}
+            lokasi={lokasi} lokasiLoading={lokasiLoading} lokasiError={lokasiError} onRetryLokasi={requestLokasi}
+            status={status} setStatus={setStatus}
+            ttd={ttd} setTtd={setTtd}
+            submitting={submitting} onSubmit={handleSubmit}
+          />
+
+          <AnimatePresence>
+            {mobileDetailId && (() => {
+              const k = kegiatanList.find((x) => x.id === mobileDetailId);
+              if (!k) return null;
+              return <MobileDetailSheet key="detail" onClose={() => setMobileDetailId(null)} k={k} />;
+            })()}
+          </AnimatePresence>
+        </div>
+      </div>
     </div>
+  );
+}
+
+// Baris daftar vertikal per kegiatan — meniru baris "lesson" pada
+// referensi: ikon bulat kiri (play = bisa diabsen sekarang, centang = sudah
+// diabsen, gembok = belum bisa diakses karena belum mulai/sudah tutup),
+// judul + subjudul jam, ikon status di kanan. Baris "locked" tidak bisa
+// diklik sama sekali (bukan cuma redup) karena memang belum/tidak bisa
+// diabsen lagi.
+function KegiatanListRow({ k, onAction, onDetail }: {
+  k: KegiatanUntukGuru;
+  onAction: () => void;
+  onDetail: () => void;
+}) {
+  const done = k.sudahAbsen;
+  const actionable = !done && k.window === "BUKA";
+  const isIzin = k.status === "IZIN";
+  const accent = done ? (isIzin ? "#F59E0B" : "#00C853") : actionable ? "#00C853" : "#94A3B8";
+
+  return (
+    <button type="button" onClick={done ? onDetail : actionable ? onAction : undefined}
+      disabled={!done && !actionable}
+      className="flex w-full items-center gap-3 border-b border-slate-100 py-3.5 text-left last:border-0 disabled:cursor-default dark:border-slate-700/50">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}1E` }}>
+        {done ? <Check size={18} strokeWidth={3} style={{ color: accent }} />
+          : actionable ? <Play size={16} fill={accent} style={{ color: accent }} />
+          : <Lock size={15} style={{ color: accent }} />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-slate-800 dark:text-white">{k.nama}</p>
+        <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">
+          {done ? `Diabsen ${k.waktuAbsen}${isIzin ? " · Izin" : ""}` : k.window === "BELUM_MULAI" ? `Mulai ${k.jamLabel}` : actionable ? k.jamLabel : `Ditutup · ${k.jamLabel}`}
+        </p>
+        {done && k.catatan && (
+          <p className="mt-1 flex items-start gap-1 text-[11px] leading-snug" style={{ color: "#3B82F6" }}>
+            <StickyNote size={11} className="mt-0.5 shrink-0" />
+            <span className="min-w-0 truncate">{k.catatan}</span>
+          </p>
+        )}
+      </div>
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}1E` }}>
+        {done ? <ChevronRight size={14} style={{ color: accent }} />
+          : actionable ? <ChevronRight size={14} style={{ color: accent }} />
+          : <Lock size={11} style={{ color: accent }} />}
+      </span>
+    </button>
+  );
+}
+
+function MobileKegiatanWizard({
+  open, onClose, kegiatan, step, setStep, direction, setDirection,
+  fotoPreview, onCaptureFoto, compressingFoto, onFotoClear,
+  lokasi, lokasiLoading, lokasiError, onRetryLokasi,
+  status, setStatus,
+  ttd, setTtd,
+  submitting, onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  kegiatan: KegiatanUntukGuru | null;
+  step: number; setStep: (n: number) => void;
+  direction: number; setDirection: (n: number) => void;
+  fotoPreview: string | null; onCaptureFoto: (f: File) => void; compressingFoto: boolean; onFotoClear: () => void;
+  lokasi: string | null; lokasiLoading: boolean; lokasiError: string | null; onRetryLokasi: () => void;
+  status: "HADIR" | "IZIN"; setStatus: (s: "HADIR" | "IZIN") => void;
+  ttd: string | null; setTtd: (v: string | null) => void;
+  submitting: boolean; onSubmit: () => void;
+}) {
+  const steps = ["foto", "lokasi", "status", "ttd"] as const;
+  const stepLabels: Record<(typeof steps)[number], string> = { foto: "Foto Selfie", lokasi: "Lokasi", status: "Status Kehadiran", ttd: "Tanda Tangan" };
+  const stepKey = steps[step] ?? steps[0];
+  const lastStep = step === steps.length - 1;
+  const fotoMissing = !fotoPreview;
+  const lokasiMissing = !lokasi;
+  const ttdMissing = !ttd;
+  const stepValid =
+    stepKey === "foto" ? !fotoMissing && !compressingFoto :
+    stepKey === "lokasi" ? !lokasiMissing :
+    stepKey === "status" ? true :
+    !ttdMissing;
+
+  function goNext() {
+    if (!stepValid) return;
+    if (lastStep) { onSubmit(); return; }
+    setDirection(1);
+    setStep(step + 1);
+  }
+  function goBack() {
+    setDirection(-1);
+    setStep(Math.max(0, step - 1));
+  }
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-100 flex items-end justify-center">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !submitting && onClose()} />
+          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 300 }}
+            className="relative z-10 flex w-full flex-col overflow-hidden rounded-t-3xl bg-white dark:bg-slate-800"
+            style={{ maxHeight: "92vh" }}>
+
+            <div className="flex items-center justify-between px-5 pt-5">
+              <div className="flex items-center gap-1.5">
+                {steps.map((s, i) => (
+                  <span key={s} className="h-1.5 w-6 rounded-full transition-colors" style={{ background: i <= step ? "#00C853" : "#E2E8F0" }} />
+                ))}
+              </div>
+              <button type="button" onClick={() => !submitting && onClose()}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300">
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 px-5 pb-2 pt-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "#00C853" }}>
+                <ClipboardCheck size={16} />
+              </div>
+              <div className="min-w-0">
+                <span className="block truncate text-[10.5px] font-bold uppercase tracking-wider" style={{ color: "#00C853" }}>
+                  {kegiatan?.nama ?? "Kegiatan"} · {step + 1}/{steps.length}
+                </span>
+                <h3 className="text-lg font-extrabold leading-tight text-slate-800 dark:text-white">{stepLabels[stepKey]}</h3>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 pb-5">
+              <AnimatePresence mode="wait" custom={direction}>
+                <motion.div key={stepKey}
+                  initial={{ opacity: 0, x: direction * 28 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: direction * -28 }}
+                  transition={{ duration: 0.22 }}>
+
+                  {stepKey === "foto" && (
+                    <div>
+                      <p className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                        <Camera size={12} /> Foto Selfie <span className="text-red-400 normal-case">*wajib</span>
+                      </p>
+                      <p className="mb-2.5 text-[11px] font-medium text-red-500">Jika absensi kurang sesuai dengan kegiatan maka tidak terverifikasi.</p>
+                      {fotoPreview ? (
+                        <div className="relative">
+                          <img src={fotoPreview} alt="Preview selfie" className="h-56 w-full rounded-2xl object-cover shadow-sm" />
+                          <button onClick={onFotoClear}
+                            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : compressingFoto ? (
+                        <div className="flex h-56 w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 dark:border-slate-600">
+                          <Loader2 size={30} className="animate-spin" />
+                          <span className="text-xs font-bold">Memproses foto...</span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-center">
+                          <CameraCapture onCapture={onCaptureFoto} disabled={compressingFoto} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {stepKey === "lokasi" && (
+                    <div>
+                      <p className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                        <MapPin size={12} /> Lokasi <span className="text-red-400 normal-case">*wajib</span>
+                      </p>
+                      <div className={`flex items-center gap-2.5 rounded-2xl border bg-slate-50 px-3.5 py-4 dark:bg-slate-900/40 ${
+                        lokasiMissing ? "border-red-300 dark:border-red-800" : "border-slate-100 dark:border-slate-700"
+                      }`}>
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: lokasi ? "#00D67F18" : "#EF444418" }}>
+                          <MapPin size={16} className={lokasi ? "text-emerald-500" : "text-red-400"} />
+                        </span>
+                        {lokasiLoading ? (
+                          <span className="text-xs text-slate-400">Mendeteksi lokasi...</span>
+                        ) : lokasi ? (
+                          <span className="truncate font-mono text-xs text-slate-600 dark:text-slate-300">{lokasi}</span>
+                        ) : (
+                          <div className="flex flex-1 items-center justify-between gap-2">
+                            <span className="text-xs text-red-500">{lokasiError ?? "Lokasi belum terdeteksi"}</span>
+                            <button type="button" onClick={onRetryLokasi} className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-[#00C853] shadow-sm dark:bg-slate-800">
+                              Coba lagi
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {stepKey === "status" && (
+                    <div className="space-y-2.5">
+                      {(["HADIR", "IZIN"] as const).map((s) => {
+                        const active = status === s;
+                        const c = s === "HADIR"
+                          ? { clr: "#00C853", bg: "#00C85318", icon: UserCheck, desc: "Saya hadir untuk kegiatan ini" }
+                          : { clr: "#F59E0B", bg: "#F59E0B18", icon: FileText, desc: "Saya izin untuk kegiatan ini" };
+                        const Icon = c.icon;
+                        return (
+                          <button key={s} type="button" onClick={() => setStatus(s)}
+                            className="flex w-full items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-left transition-colors"
+                            style={active ? { borderColor: c.clr, background: c.bg } : { borderColor: "#F1F5F9", background: "transparent" }}>
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: c.bg }}>
+                              <Icon size={18} style={{ color: c.clr }} />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-bold" style={{ color: active ? c.clr : "#334155" }}>{s === "HADIR" ? "Hadir" : "Izin"}</p>
+                              <p className="text-[11px] text-slate-400">{c.desc}</p>
+                            </div>
+                            {active && <CheckCircle2 size={18} className="shrink-0" style={{ color: c.clr }} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {stepKey === "ttd" && (
+                    <div>
+                      <p className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                        <FileSignature size={12} /> Tanda Tangan <span className="text-red-400 normal-case">*wajib</span>
+                      </p>
+                      <div className={ttdMissing ? "rounded-xl ring-2 ring-red-300" : ""}>
+                        <SignaturePad onChange={setTtd} />
+                      </div>
+                      {ttdMissing && <p className="mt-2 text-[11px] font-semibold text-red-500">Tanda tangan wajib diisi</p>}
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            <div className="flex items-center gap-3 border-t border-slate-100 px-5 py-4 dark:border-slate-700">
+              {step > 0 && (
+                <button type="button" onClick={goBack}
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300">
+                  <ChevronLeft size={18} />
+                </button>
+              )}
+              <motion.button whileTap={{ scale: 0.97 }} type="button" onClick={goNext}
+                disabled={!stepValid || submitting}
+                className="flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold text-white shadow-md disabled:opacity-50"
+                style={{ background: "#EF4444" }}>
+                {lastStep
+                  ? (submitting ? <Loader2 size={16} className="animate-spin" /> : <Clock size={16} />)
+                  : <ChevronRight size={16} />}
+                {lastStep ? (submitting ? "Menyimpan..." : "Absen Sekarang") : "Lanjut"}
+              </motion.button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+}
+
+function MobileDetailSheet({ onClose, k }: { onClose: () => void; k: KegiatanUntukGuru }) {
+  const isIzin = k.status === "IZIN";
+  const accent = isIzin ? "#F59E0B" : "#00C853";
+  const titik = parseLokasi(k.lokasi);
+  const fotoSrc = resolveMediaSrc(k.foto);
+  const ttdSrc = k.ttd;
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-100 flex items-end justify-center">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 300 }}
+        className="relative z-10 w-full overflow-hidden rounded-t-3xl" style={{ background: accent }}>
+        <button type="button" onClick={onClose}
+          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm">
+          <X size={15} />
+        </button>
+        <div className="overflow-y-auto" style={{ maxHeight: "92vh" }}>
+          <div className="relative px-6 py-8 text-center">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
+            <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-white/8" />
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", damping: 10, delay: 0.1 }}
+              className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/25 shadow-lg">
+              <CheckCircle2 size={30} className="text-white" />
+            </motion.div>
+            <h2 className="mt-4 text-lg font-extrabold text-white">{k.nama}</h2>
+            <p className="mt-1 text-sm text-white/80">Anda tercatat <b>{isIzin ? "Izin" : "Hadir"}</b> untuk kegiatan ini</p>
+            <div className="mx-auto mt-5 flex max-w-xs items-center justify-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
+              <Clock size={14} className="text-white/70" />
+              <span className="font-mono text-xl font-extrabold text-white">{k.waktuAbsen ?? "—"}</span>
+            </div>
+
+            <div className="relative mx-auto mt-6 grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
+              {fotoSrc && (
+                <div className="flex flex-col items-center gap-1.5 rounded-xl bg-white/10 p-3 backdrop-blur-sm">
+                  <img src={fotoSrc} alt="Foto Selfie" className="h-24 w-24 rounded-xl border-2 border-white/30 object-cover shadow-md" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-white/60">Foto Selfie</span>
+                </div>
+              )}
+              {ttdSrc && (
+                <div className="flex flex-col items-center gap-1.5 rounded-xl bg-white/10 p-3 backdrop-blur-sm">
+                  <img src={ttdSrc} alt="Tanda tangan" className="h-24 w-full rounded-xl border-2 border-white/30 bg-white object-contain shadow-md" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-white/60">Tanda Tangan</span>
+                </div>
+              )}
+            </div>
+
+            {(k.lokasi || k.catatan) && (
+              <div className="relative mx-auto mt-4 max-w-md space-y-2 text-left">
+                {k.lokasi && titik && (
+                  <div className="overflow-hidden rounded-xl bg-white/10 backdrop-blur-sm">
+                    <iframe src={`https://maps.google.com/maps?q=${titik.lat},${titik.lng}&output=embed`}
+                      className="h-32 w-full border-0" loading="lazy" title="Lokasi absen" />
+                    <a href={`https://maps.google.com/maps?q=${titik.lat},${titik.lng}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-between gap-2 px-3 py-2">
+                      <span className="truncate font-mono text-[10.5px] text-white/70">{k.lokasi}</span>
+                      <span className="flex shrink-0 items-center gap-1 text-[10.5px] font-bold text-white/90">
+                        <ExternalLink size={10} /> Maps
+                      </span>
+                    </a>
+                  </div>
+                )}
+                {k.catatan && (
+                  <div className="flex items-start gap-2 rounded-xl bg-white/10 px-3 py-2 backdrop-blur-sm">
+                    <StickyNote size={13} className="mt-0.5 shrink-0 text-white/70" />
+                    <span className="text-[11px] text-white/80">{k.catatan}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </div>,
+    document.body
   );
 }

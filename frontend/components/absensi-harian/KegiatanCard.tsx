@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarClock, Clock, Plus, Trash2, Pencil, X, Loader2 } from "lucide-react";
+import { CalendarClock, Clock, Plus, Trash2, Pencil, X, Loader2, Repeat } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
 import { KEGIATAN_WINDOW_CFG } from "./shared";
-import type { Kegiatan } from "./types";
+import type { Kegiatan, KegiatanRecurring, HariRecurring } from "./types";
 
 function minutesToTimeInput(minutes: number | null | undefined): string {
   if (minutes == null) return "";
@@ -111,9 +111,68 @@ function Time24Select({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
-type FormState = { id: string | null; nama: string; tanggal: string; jamMulai: string; jamSelesai: string; keterangan: string };
+const HARI_LIST: HariRecurring[] = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU", "MINGGU"];
+const HARI_LABEL: Record<HariRecurring, string> = {
+  SENIN: "Senin", SELASA: "Selasa", RABU: "Rabu", KAMIS: "Kamis", JUMAT: "Jumat", SABTU: "Sabtu", MINGGU: "Minggu",
+};
+const HARI_SEKOLAH: HariRecurring[] = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT"];
 
-const EMPTY_FORM: FormState = { id: null, nama: "", tanggal: "", jamMulai: "", jamSelesai: "", keterangan: "" };
+// "Setiap Hari" (ke-7) / "Senin–Jumat" (persis 5 hari sekolah) / daftar
+// hari dipisah koma — supaya badge & konfirmasi hapus tidak perlu
+// menyebut 5-7 nama hari satu-satu tiap kali.
+function formatHariList(hari: HariRecurring[]): string {
+  const set = new Set(hari);
+  if (HARI_LIST.every((h) => set.has(h))) return "Setiap Hari";
+  if (HARI_SEKOLAH.every((h) => set.has(h)) && set.size === HARI_SEKOLAH.length) return "Senin–Jumat";
+  return HARI_LIST.filter((h) => set.has(h)).map((h) => HARI_LABEL[h]).join(", ");
+}
+
+// Grid checkbox 7 hari + tombol "Pilih Semua Hari" / "Hari Sekolah" — bisa
+// pilih lebih dari 1 hari sekaligus per aturan (mis. kegiatan yang sama
+// tiap Senin-Jumat), beda dari dropdown 1-hari yang lama.
+function HariMultiSelect({ value, onChange }: { value: HariRecurring[]; onChange: (v: HariRecurring[]) => void }) {
+  function toggle(h: HariRecurring) {
+    onChange(value.includes(h) ? value.filter((x) => x !== h) : [...value, h]);
+  }
+  const isSekolahExact = value.length === HARI_SEKOLAH.length && HARI_SEKOLAH.every((h) => value.includes(h));
+  const isAllExact = value.length === HARI_LIST.length;
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+        {HARI_LIST.map((h) => {
+          const active = value.includes(h);
+          return (
+            <button key={h} type="button" onClick={() => toggle(h)}
+              className={`rounded-lg border-2 py-1.5 text-[11px] font-bold transition-colors ${
+                active ? "border-transparent text-white" : "border-slate-200 text-slate-500 dark:border-slate-600 dark:text-slate-400"
+              }`}
+              style={active ? { backgroundColor: "#3B82F6" } : {}}>
+              {HARI_LABEL[h].slice(0, 3)}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" onClick={() => onChange(isSekolahExact ? [] : HARI_SEKOLAH)}
+          className="rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors"
+          style={isSekolahExact ? { background: "#3B82F6", color: "#fff" } : { background: "#F1F5F9", color: "#64748B" }}>
+          Hari Sekolah (Senin–Jumat)
+        </button>
+        <button type="button" onClick={() => onChange(isAllExact ? [] : HARI_LIST)}
+          className="rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors"
+          style={isAllExact ? { background: "#3B82F6", color: "#fff" } : { background: "#F1F5F9", color: "#64748B" }}>
+          Pilih Semua Hari
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type FormState = { id: string | null; nama: string; tanggal: string; jamMulai: string; jamSelesai: string; keterangan: string; recurringSourceId: string | null };
+type RecurringFormState = { id: string | null; nama: string; hari: HariRecurring[]; jamMulai: string; jamSelesai: string; keterangan: string };
+const EMPTY_RECURRING_FORM: RecurringFormState = { id: null, nama: "", hari: [], jamMulai: "", jamSelesai: "", keterangan: "" };
+
+const EMPTY_FORM: FormState = { id: null, nama: "", tanggal: "", jamMulai: "", jamSelesai: "", keterangan: "", recurringSourceId: null };
 
 export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChanged?: () => void }) {
   const toast = useToast();
@@ -122,6 +181,12 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+
+  const [recurringList, setRecurringList] = useState<KegiatanRecurring[]>([]);
+  const [loadingRecurring, setLoadingRecurring] = useState(true);
+  const [showRecurringForm, setShowRecurringForm] = useState(false);
+  const [savingRecurring, setSavingRecurring] = useState(false);
+  const [recurringForm, setRecurringForm] = useState<RecurringFormState>(EMPTY_RECURRING_FORM);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -134,6 +199,18 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
   }, [tanggal]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadRecurring = useCallback(async () => {
+    setLoadingRecurring(true);
+    try {
+      const res = await fetch("/api/absensi-harian/kegiatan-recurring");
+      if (res.ok) setRecurringList(await res.json());
+    } finally {
+      setLoadingRecurring(false);
+    }
+  }, []);
+
+  useEffect(() => { loadRecurring(); }, [loadRecurring]);
 
   function openCreate() {
     setForm({ ...EMPTY_FORM, tanggal });
@@ -148,6 +225,7 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
       jamMulai: minutesToTimeInput(k.jamMulai),
       jamSelesai: minutesToTimeInput(k.jamSelesai),
       keterangan: k.keterangan ?? "",
+      recurringSourceId: k.recurringSourceId,
     });
     setShowForm(true);
   }
@@ -173,12 +251,15 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
       const beda = form.tanggal !== tanggal;
       toast.success(
         "Kegiatan disimpan",
-        beda
-          ? `"${form.nama}" ${isEdit ? "diperbarui" : "ditambahkan"} untuk ${formatTanggalFull(form.tanggal)}`
-          : `"${form.nama}" berhasil ${isEdit ? "diperbarui" : "ditambahkan"}`,
+        form.recurringSourceId
+          ? `"${form.nama}" diperbarui — berlaku juga untuk minggu-minggu berikutnya`
+          : beda
+            ? `"${form.nama}" ${isEdit ? "diperbarui" : "ditambahkan"} untuk ${formatTanggalFull(form.tanggal)}`
+            : `"${form.nama}" berhasil ${isEdit ? "diperbarui" : "ditambahkan"}`,
       );
       setShowForm(false);
       load();
+      if (form.recurringSourceId) loadRecurring();
       onChanged?.();
     } catch (e) {
       toast.error("Gagal menyimpan kegiatan", e instanceof Error ? e.message : "Coba lagi");
@@ -200,6 +281,86 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
       toast.error("Gagal menghapus kegiatan", e instanceof Error ? e.message : "Coba lagi");
     }
   }
+
+  function openCreateRecurring() {
+    setRecurringForm(EMPTY_RECURRING_FORM);
+    setShowRecurringForm(true);
+  }
+
+  function openEditRecurring(r: KegiatanRecurring) {
+    setRecurringForm({
+      id: r.id,
+      nama: r.nama,
+      hari: r.hari,
+      jamMulai: minutesToTimeInput(r.jamMulai),
+      jamSelesai: minutesToTimeInput(r.jamSelesai),
+      keterangan: r.keterangan ?? "",
+    });
+    setShowRecurringForm(true);
+  }
+
+  async function handleSubmitRecurring(e: React.FormEvent) {
+    e.preventDefault();
+    const jamMulai = timeInputToMinutes(recurringForm.jamMulai);
+    const jamSelesai = timeInputToMinutes(recurringForm.jamSelesai);
+    if (!recurringForm.nama.trim() || recurringForm.hari.length === 0 || jamMulai == null || jamSelesai == null) {
+      toast.error("Data belum lengkap", "Nama kegiatan, hari, jam mulai, dan jam selesai wajib diisi");
+      return;
+    }
+    setSavingRecurring(true);
+    try {
+      const isEdit = !!recurringForm.id;
+      const res = await fetch(
+        isEdit ? `/api/absensi-harian/kegiatan-recurring/${recurringForm.id}` : "/api/absensi-harian/kegiatan-recurring",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nama: recurringForm.nama.trim(),
+            hari: recurringForm.hari,
+            jamMulai,
+            jamSelesai,
+            keterangan: recurringForm.keterangan || undefined,
+          }),
+        },
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.message ?? "Gagal menyimpan kegiatan berulang");
+      toast.success(
+        "Kegiatan berulang disimpan",
+        `"${recurringForm.nama}" akan otomatis muncul tiap ${formatHariList(recurringForm.hari)}`,
+      );
+      setShowRecurringForm(false);
+      loadRecurring();
+      load();
+      onChanged?.();
+    } catch (e) {
+      toast.error("Gagal menyimpan kegiatan berulang", e instanceof Error ? e.message : "Coba lagi");
+    } finally {
+      setSavingRecurring(false);
+    }
+  }
+
+  async function handleDeleteRecurring(r: KegiatanRecurring) {
+    if (!confirm(`Hentikan kegiatan berulang "${r.nama}" (tiap ${formatHariList(r.hari)})? Kegiatan yang sudah pernah dibuat dari aturan ini tidak ikut terhapus.`)) return;
+    try {
+      const res = await fetch(`/api/absensi-harian/kegiatan-recurring/${r.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.message ?? "Gagal menghapus kegiatan berulang");
+      toast.success("Kegiatan berulang dihentikan", "");
+      loadRecurring();
+    } catch (e) {
+      toast.error("Gagal menghapus kegiatan berulang", e instanceof Error ? e.message : "Coba lagi");
+    }
+  }
+
+  // "Kegiatan Hari Ini" cuma menampilkan kegiatan satu-kali (dibuat manual
+  // untuk tanggal ini saja) — kegiatan yang berasal dari aturan Kegiatan
+  // Berulang (recurringSourceId terisi) tidak ditampilkan dobel di sini,
+  // cukup dikelola dari section "Kegiatan Berulang" di bawah supaya tidak
+  // membingungkan (dua tempat menampilkan jam yang sama untuk kegiatan
+  // yang sama).
+  const oneOffList = list.filter((k) => !k.recurringSourceId);
 
   return (
     <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -224,11 +385,13 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
 
       {loading ? (
         <div className="flex items-center justify-center py-6 text-slate-400"><Loader2 size={18} className="animate-spin" /></div>
-      ) : list.length === 0 ? (
-        <p className="py-6 text-center text-xs font-semibold text-slate-400">Belum ada kegiatan untuk tanggal ini</p>
+      ) : oneOffList.length === 0 ? (
+        <p className="py-6 text-center text-xs font-semibold text-slate-400">
+          {list.length === 0 ? "Belum ada kegiatan untuk tanggal ini" : "Semua kegiatan hari ini berasal dari Kegiatan Berulang — lihat & atur di bawah"}
+        </p>
       ) : (
         <div className="space-y-1.5">
-          {list.map((k) => {
+          {oneOffList.map((k) => {
             const cfg = KEGIATAN_WINDOW_CFG[k.window];
             return (
               <div key={k.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700/30">
@@ -258,6 +421,123 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
         </div>
       )}
 
+      <div className="my-4 border-t border-slate-100 dark:border-slate-700" />
+
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "#3B82F6" }}>
+            <Repeat size={16} />
+          </span>
+          <div>
+            <p className="text-sm font-bold text-slate-800 dark:text-white">Kegiatan Berulang</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">Otomatis dibuat tiap minggu di hari yang dipilih</p>
+          </div>
+        </div>
+        <motion.button
+          type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+          onClick={openCreateRecurring}
+          className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-sm" style={{ background: "#3B82F6" }}
+        >
+          <Plus size={13} /> Tambah Berulang
+        </motion.button>
+      </div>
+
+      {loadingRecurring ? (
+        <div className="flex items-center justify-center py-6 text-slate-400"><Loader2 size={18} className="animate-spin" /></div>
+      ) : recurringList.length === 0 ? (
+        <p className="py-6 text-center text-xs font-semibold text-slate-400">Belum ada kegiatan berulang</p>
+      ) : (
+        <div className="space-y-1.5">
+          {recurringList.map((r) => (
+            <div key={r.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700/30">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="truncate text-sm font-bold text-slate-700 dark:text-slate-200">{r.nama}</p>
+                  <span className="shrink-0 rounded-lg px-2 py-0.5 text-[9px] font-extrabold text-white" style={{ background: "#3B82F6" }}>
+                    Tiap {formatHariList(r.hari)}
+                  </span>
+                </div>
+                <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+                  <Clock size={10} /> {fmtMinutes(r.jamMulai)}-{fmtMinutes(r.jamSelesai)} WIB
+                  {r.keterangan ? ` · ${r.keterangan}` : ""}
+                </p>
+              </div>
+              <button type="button" onClick={() => openEditRecurring(r)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-[#000000] dark:hover:bg-slate-700">
+                <Pencil size={13} />
+              </button>
+              <button type="button" onClick={() => handleDeleteRecurring(r)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {showRecurringForm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setShowRecurringForm(false)}
+            className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-800">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800 dark:text-white">{recurringForm.id ? "Edit Kegiatan Berulang" : "Tambah Kegiatan Berulang"}</h2>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">Otomatis muncul tiap minggu di hari yang dipilih · jam WIB (GMT+7)</p>
+                </div>
+                <button type="button" onClick={() => setShowRecurringForm(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitRecurring} className="flex flex-col gap-3.5">
+                <div>
+                  <label className={LABEL}>Nama Kegiatan</label>
+                  <input type="text" required value={recurringForm.nama} onChange={(e) => setRecurringForm((f) => ({ ...f, nama: e.target.value }))}
+                    placeholder="Contoh: Rapat Guru" className={INPUT} />
+                </div>
+
+                <div>
+                  <label className={LABEL}>Hari <span className="text-red-400 normal-case">*bisa pilih lebih dari 1</span></label>
+                  <HariMultiSelect value={recurringForm.hari} onChange={(v) => setRecurringForm((f) => ({ ...f, hari: v }))} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className={LABEL}>Jam Mulai (WIB)</label>
+                    <Time24Select value={recurringForm.jamMulai} onChange={(v) => setRecurringForm((f) => ({ ...f, jamMulai: v }))} />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Jam Selesai (WIB)</label>
+                    <Time24Select value={recurringForm.jamSelesai} onChange={(v) => setRecurringForm((f) => ({ ...f, jamSelesai: v }))} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={LABEL}>Keterangan (opsional)</label>
+                  <textarea rows={2} value={recurringForm.keterangan} onChange={(e) => setRecurringForm((f) => ({ ...f, keterangan: e.target.value }))}
+                    placeholder="Contoh: Dilaksanakan di ruang guru" className={`${INPUT} resize-none`} />
+                </div>
+
+                <div className="mt-1 flex justify-end gap-2">
+                  <button type="button" onClick={() => setShowRecurringForm(false)} className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300">
+                    Batal
+                  </button>
+                  <button type="submit" disabled={savingRecurring}
+                    className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-60" style={{ background: "#3B82F6" }}>
+                    {savingRecurring && <Loader2 size={14} className="animate-spin" />}
+                    {savingRecurring ? "Menyimpan..." : "Simpan Kegiatan Berulang"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -275,6 +555,15 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
                   <X size={16} />
                 </button>
               </div>
+
+              {form.recurringSourceId && (
+                <div className="mb-3.5 flex items-start gap-2 rounded-xl border px-3 py-2.5" style={{ borderColor: "#3B82F640", backgroundColor: "#3B82F612" }}>
+                  <Repeat size={14} className="mt-0.5 shrink-0" style={{ color: "#3B82F6" }} />
+                  <p className="text-[11px] leading-snug text-slate-600 dark:text-slate-300">
+                    Kegiatan ini berasal dari <b>Kegiatan Berulang</b>. Perubahan nama/jam/keterangan akan berlaku untuk minggu-minggu berikutnya juga (tidak cuma tanggal ini).
+                  </p>
+                </div>
+              )}
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
                 <div>

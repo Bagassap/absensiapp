@@ -33,6 +33,7 @@ export async function GET(request: Request) {
   headers.set("Content-Type", "application/pdf");
   const disposition = backendRes.headers.get("content-disposition");
   headers.set("Content-Disposition", disposition ?? "attachment; filename=\"Absensi.pdf\"");
+  headers.set("Cache-Control", "no-store");
 
   return new NextResponse(backendRes.body, { status: 200, headers });
 }

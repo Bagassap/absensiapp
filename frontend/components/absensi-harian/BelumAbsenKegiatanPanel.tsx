@@ -9,6 +9,12 @@ import { avatarColor, CARD_GRADIENTS } from "./shared";
 
 export type GuruRosterItem = { guruId: string; nama: string; npy: string | null; fotoProfil: string | null };
 export type KegiatanRingkas = { id: string; nama: string; guruTotal: number; jumlahAbsen: number };
+// Baris "Alfa" sintetis dari backend (lihat getRekapKegiatan) — sudah
+// mempertimbangkan aturan piket-vs-apel (guru yang tidak berjadwal piket
+// hari itu TIDAK dianggap wajib absen Piket Harian, dst), jadi dipakai
+// langsung sebagai sumber data "siapa saja yang belum absen" alih-alih
+// menghitung ulang dari seluruh roster guru di komponen ini.
+export type AlfaRow = { guruId: string; kegiatanId: string; nama: string | null; npy: string | null; fotoProfil: string | null; status: string };
 
 // Modal "persegi panjang ke samping" (max-w-3xl, bukan kotak) meniru pola
 // GuruListModal di dashboard admin — pencarian + daftar vertikal + paginasi
@@ -116,20 +122,21 @@ function DetailModal({
 // "Belum Absen — Piket Harian", dst kalau lebih dari satu kegiatan) — klik
 // buka DetailModal berisi daftar guru yang belum absen kegiatan tsb.
 export function BelumAbsenKegiatanPanel({
-  kegiatanList, guruRoster, rows,
+  kegiatanList, rows,
 }: {
   kegiatanList: KegiatanRingkas[];
-  guruRoster: GuruRosterItem[];
-  rows: { guruId: string; kegiatanId: string }[];
+  rows: AlfaRow[];
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  if (kegiatanList.length === 0 || guruRoster.length === 0) return null;
+  if (kegiatanList.length === 0) return null;
 
   const activeIndex = kegiatanList.findIndex((k) => k.id === activeId);
   const active = activeIndex >= 0 ? kegiatanList[activeIndex] : null;
-  const belumList = active
-    ? guruRoster.filter((g) => !rows.some((r) => r.kegiatanId === active.id && r.guruId === g.guruId))
+  const belumList: GuruRosterItem[] = active
+    ? rows
+        .filter((r) => r.status === "ALFA" && r.kegiatanId === active.id)
+        .map((r) => ({ guruId: r.guruId, nama: r.nama ?? "-", npy: r.npy, fotoProfil: r.fotoProfil }))
     : [];
 
   return (

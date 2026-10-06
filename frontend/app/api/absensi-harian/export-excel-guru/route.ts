@@ -34,6 +34,7 @@ export async function GET(request: Request) {
   headers.set("Content-Type", XLSX_MIME);
   const disposition = backendRes.headers.get("content-disposition");
   headers.set("Content-Disposition", disposition ?? "attachment; filename=\"Absensi.xlsx\"");
+  headers.set("Cache-Control", "no-store");
 
   return new NextResponse(backendRes.body, { status: 200, headers });
 }

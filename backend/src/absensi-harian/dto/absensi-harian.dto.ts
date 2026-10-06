@@ -1,4 +1,6 @@
-import { IsString, IsOptional, IsInt, Min, Max, IsNotEmpty, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsInt, Min, Max, IsNotEmpty, IsIn, IsArray, ArrayNotEmpty, ArrayUnique } from 'class-validator';
+
+const HARI_VALUES = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU', 'MINGGU'];
 
 export class CreateKegiatanDto {
   @IsString()
@@ -82,4 +84,60 @@ export class VerifikasiAbsensiDto {
   @IsOptional()
   @IsString()
   catatan?: string;
+}
+
+export class CreateKegiatanRecurringDto {
+  @IsString()
+  @IsNotEmpty()
+  nama!: string;
+
+  // Bisa lebih dari 1 hari (atau ke-7 hari) sekaligus per aturan.
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsIn(HARI_VALUES, { each: true })
+  hari!: string[];
+
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  jamMulai!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  jamSelesai!: number;
+
+  @IsString()
+  @IsOptional()
+  keterangan?: string;
+}
+
+export class UpdateKegiatanRecurringDto {
+  @IsString()
+  @IsOptional()
+  nama?: string;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsIn(HARI_VALUES, { each: true })
+  @IsOptional()
+  hari?: string[];
+
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  @IsOptional()
+  jamMulai?: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  @IsOptional()
+  jamSelesai?: number;
+
+  @IsString()
+  @IsOptional()
+  keterangan?: string;
 }

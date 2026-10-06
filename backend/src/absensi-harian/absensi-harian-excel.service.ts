@@ -14,6 +14,9 @@ type AbsensiRow = {
   lokasi: string;
   foto: string;
   ttd: string;
+  catatan?: string | null;
+  verified?: boolean;
+  verifiedByNama?: string | null;
 };
 
 type RekapHarian = { tanggal: string; kegiatan: { nama: string; jamLabel: string; jumlahAbsen: number; guruTotal: number }[]; rows: AbsensiRow[] };
@@ -145,7 +148,10 @@ export class AbsensiHarianExcelService {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Absensi Guru';
     wb.created = new Date();
-    const ws = wb.addWorksheet('Absensi Kegiatan', { views: [{ state: 'frozen', ySplit: 1 }] });
+    const ws = wb.addWorksheet('Absensi Kegiatan', {
+      views: [{ state: 'frozen', ySplit: 1 }],
+      pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    });
 
     ws.columns = [
       { header: 'Nama', key: 'nama', width: 26 },
@@ -156,20 +162,27 @@ export class AbsensiHarianExcelService {
       { header: 'Peta', key: 'peta', width: 18 },
       { header: 'Foto', key: 'foto', width: 13 },
       { header: 'TTD', key: 'ttd', width: 16 },
+      { header: 'Catatan Verifikasi', key: 'catatan', width: 34 },
     ];
     this.headerRow(ws);
     const colIndex: Record<string, number> = {};
     ws.columns.forEach((col, i) => { if (col.key) colIndex[col.key] = i; });
 
     for (const r of rekap.rows) {
+      // Catatan tertulis admin diutamakan (sama seperti PDF) — "Terverifikasi"
+      // cuma fallback kalau diverifikasi TANPA catatan tertulis.
+      const adminSuffix = r.verifiedByNama ? ` — ${r.verifiedByNama}` : '';
+      const catatanText = r.catatan ? `${r.catatan}${adminSuffix}` : r.verified ? `Terverifikasi${adminSuffix}` : '-';
       const row = ws.addRow({
         nama: r.nama || '-',
         npy: r.npy || '-',
         kegiatan: r.kegiatanNama,
         waktuAbsen: r.waktuAbsen,
         lokasi: r.lokasi,
+        catatan: catatanText,
       });
-      row.alignment = { vertical: 'middle' };
+      row.alignment = { vertical: 'middle', wrapText: true };
+      if (!r.catatan && !r.verified) row.getCell('catatan').font = NA_FONT;
 
       const url = googleMapsUrl(r.lokasi);
       if (url) {
@@ -204,7 +217,10 @@ export class AbsensiHarianExcelService {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Absensi Guru';
     wb.created = new Date();
-    const ws = wb.addWorksheet('Rekap Kegiatan', { views: [{ state: 'frozen', ySplit: 3 }] });
+    const ws = wb.addWorksheet('Rekap Kegiatan', {
+      views: [{ state: 'frozen', ySplit: 3 }],
+      pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    });
 
     const colDefs = [
       { key: 'nama', width: 26 },
@@ -242,7 +258,10 @@ export class AbsensiHarianExcelService {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Absensi Guru';
     wb.created = new Date();
-    const ws = wb.addWorksheet('Rekap Kegiatan', { views: [{ state: 'frozen', ySplit: 3 }] });
+    const ws = wb.addWorksheet('Rekap Kegiatan', {
+      views: [{ state: 'frozen', ySplit: 3 }],
+      pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    });
 
     const colDefs = [
       { key: 'tanggal', width: 14 },
@@ -259,7 +278,19 @@ export class AbsensiHarianExcelService {
     ws.getRow(3).values = ['Tanggal', 'Kegiatan', 'Status', 'Jam Absen'];
     this.styleHeaderRow(ws.getRow(3));
 
+    // Pita pembatas tiap kali tanggalnya berganti — tabel ini mencakup
+    // banyak hari sekaligus (mingguan/bulanan), jadi tanpa pembatas baris2
+    // dari hari yang berbeda menyatu dan sulit dipisahkan secara sekilas.
+    let lastTanggal: string | null = null;
     for (const r of rekap.rows) {
+      if (r.tanggal !== lastTanggal) {
+        const sepRow = ws.addRow({ tanggal: formatTanggalRingkas(r.tanggal) });
+        ws.mergeCells(sepRow.number, 1, sepRow.number, colDefs.length);
+        sepRow.getCell(1).font = { name: FONT_NAME, bold: true, color: { argb: 'FF013920' } };
+        sepRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TINT_FILL } };
+        sepRow.getCell(1).alignment = { vertical: 'middle', indent: 1 };
+        lastTanggal = r.tanggal;
+      }
       const row = ws.addRow({
         tanggal: r.tanggal,
         kegiatan: r.kegiatanNama,

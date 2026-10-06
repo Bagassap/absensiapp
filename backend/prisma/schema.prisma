@@ -55,6 +55,7 @@ model User {
   passwordResetRequests   PasswordResetRequest[] @relation("PasswordResetRequestUser")
   processedPasswordResets PasswordResetRequest[] @relation("PasswordResetRequestProcessor")
   kegiatanDibuat          Kegiatan[]             @relation("KegiatanCreator")
+  kegiatanRecurringDibuat KegiatanRecurring[]    @relation("KegiatanRecurringCreator")
   absensiDiverifikasi     AbsensiKegiatan[]      @relation("AbsensiVerifier")
 
   @@index([loginId])
@@ -102,10 +103,45 @@ model Kegiatan {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Diisi kalau baris ini dibuat otomatis dari sebuah KegiatanRecurring
+  // (lihat ensureRecurringKegiatan) — onDelete: SetNull supaya menghapus
+  // aturan berulangnya tidak ikut menghapus riwayat kegiatan/absensi yang
+  // sudah pernah terjadi dari aturan itu.
+  recurringSourceId String?
+  recurringSource   KegiatanRecurring? @relation(fields: [recurringSourceId], references: [id], onDelete: SetNull)
+
   absensi AbsensiKegiatan[]
 
   @@index([tanggal])
   @@map("kegiatan")
+}
+
+// Aturan kegiatan yang berulang tiap minggu pada hari tertentu (mis. "Rapat
+// Guru" tiap Senin) — beda dengan STANDING_KEGIATAN (Apel Pagi/Piket Harian)
+// yang hardcode tiap hari, ini didefinisikan admin lewat UI dan cuma aktif
+// di hari yang dipilih. ensureRecurringKegiatan membuatkan baris Kegiatan
+// sungguhan untuk tanggal yang sedang dilihat kalau harinya cocok dan belum
+// ada instance-nya.
+model KegiatanRecurring {
+  id          String   @id @default(cuid())
+  nama        String
+  // Bisa lebih dari satu hari (atau ke-7 hari) per aturan — tiap elemen
+  // "SENIN" | "SELASA" | "RABU" | "KAMIS" | "JUMAT" | "SABTU" | "MINGGU".
+  // Tabelnya kecil (segelintir aturan), jadi tidak diberi index khusus —
+  // ensureRecurringKegiatan cukup findMany lalu filter dengan `has` di JS/
+  // where clause Prisma.
+  hari        String[]
+  jamMulai    Int
+  jamSelesai  Int
+  keterangan  String?
+  createdById String?
+  createdBy   User?    @relation("KegiatanRecurringCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  instances Kegiatan[]
+
+  @@map("kegiatan_recurring")
 }
 
 model Guru {

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { TrendingDown, ShieldCheck, Medal, AlertTriangle, CalendarCheck2, Gauge, X, ArrowRight, UserX } from "lucide-react";
 import { Avatar } from "@/components/shared/Avatar";
 import { avatarColor, CARD_GRADIENTS } from "./shared";
-import { BelumAbsenKegiatanPanel, type GuruRosterItem, type KegiatanRingkas } from "./BelumAbsenKegiatanPanel";
+import { BelumAbsenKegiatanPanel, type AlfaRow, type KegiatanRingkas } from "./BelumAbsenKegiatanPanel";
 import type { LaporanRendahKehadiran as LaporanData, PeriodeLaporan } from "./types";
 
 const INLINE_LIMIT = 5;
@@ -62,11 +62,10 @@ function StatPill({
 }
 
 export function LaporanRendahKehadiran({
-  kegiatanHariIni = [], guruRoster = [], absensiHariIni = [],
+  kegiatanHariIni = [], alfaRows = [],
 }: {
   kegiatanHariIni?: KegiatanRingkas[];
-  guruRoster?: GuruRosterItem[];
-  absensiHariIni?: { guruId: string; kegiatanId: string }[];
+  alfaRows?: AlfaRow[];
 } = {}) {
   const [periode, setPeriode] = useState<PeriodeLaporan>("mingguan");
   const [data, setData] = useState<LaporanData | null>(null);
@@ -96,7 +95,7 @@ export function LaporanRendahKehadiran({
   return (
     <>
       <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        {kegiatanHariIni.length > 0 && guruRoster.length > 0 && (
+        {kegiatanHariIni.length > 0 && (
           <>
             <div className="mb-3 flex items-center gap-2.5">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "#013920" }}>
@@ -107,7 +106,7 @@ export function LaporanRendahKehadiran({
                 <p className="text-[11px] text-slate-400 dark:text-slate-500">Kegiatan hari ini yang belum lengkap</p>
               </div>
             </div>
-            <BelumAbsenKegiatanPanel kegiatanList={kegiatanHariIni} guruRoster={guruRoster} rows={absensiHariIni} />
+            <BelumAbsenKegiatanPanel kegiatanList={kegiatanHariIni} rows={alfaRows} />
             <div className="my-4 border-t border-slate-100 dark:border-slate-700" />
           </>
         )}

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import { promises as fs } from 'fs';
 import { join, normalize } from 'path';
+import sharp from 'sharp';
 
 type AbsensiRow = {
   id: string;
@@ -13,6 +14,11 @@ type AbsensiRow = {
   lokasi: string;
   foto: string;
   ttd: string;
+  catatan?: string | null;
+  verified?: boolean;
+  verifiedByNama?: string | null;
+  status?: 'HADIR' | 'IZIN' | 'ALFA';
+  tanggal?: string;
 };
 
 type RekapHarian = { tanggal: string; kegiatan: { nama: string; jamLabel: string; jumlahAbsen: number; guruTotal: number }[]; rows: AbsensiRow[] };
@@ -26,8 +32,22 @@ type RekapRange = {
   totalKegiatanKeseluruhan: number;
   persentaseKeseluruhan: number;
   guru: { nama: string | null; npy: string | null; hadir: number; totalKegiatan: number; persentaseKehadiran: number }[];
+  rows: {
+    id: string; guruId: string; nama: string | null; npy: string | null;
+    kegiatanNama: string; tanggal: string; waktuAbsen: string; lokasi: string;
+    foto: string; ttd: string; verified: boolean; verifiedByNama: string | null; catatan: string | null; status: 'HADIR' | 'IZIN';
+  }[];
 };
-type RekapGuruRange = { mode: 'mingguan' | 'bulanan'; tanggalMulai: string; tanggalSelesai: string; guruNama: string | null; rows: { tanggal: string; kegiatanNama: string; hadir: boolean; waktuAbsen: string | null }[]; summary: { hadir: number; totalKegiatan: number; persentaseKehadiran: number } };
+type RekapGuruRange = {
+  mode: 'mingguan' | 'bulanan'; tanggalMulai: string; tanggalSelesai: string;
+  guruNama: string | null; guruNip?: string | null;
+  rows: {
+    tanggal: string; kegiatanNama: string; hadir: boolean; waktuAbsen: string | null;
+    lokasi?: string; foto?: string; ttd?: string; verified?: boolean; verifiedByNama?: string | null; catatan?: string | null;
+    status?: 'HADIR' | 'IZIN' | null;
+  }[];
+  summary: { hadir: number; totalKegiatan: number; persentaseKehadiran: number };
+};
 
 const UPLOADS_ROOT = join(process.cwd(), 'uploads');
 const FONT_REGULAR = join(process.cwd(), 'src', 'assets', 'fonts', 'Satoshi-Regular.ttf');
@@ -44,16 +64,6 @@ function registerFonts(doc: PDFKit.PDFDocument) {
   doc.font('Satoshi');
 }
 
-function googleMapsUrl(lokasi?: string | null): string | null {
-  if (!lokasi) return null;
-  const parts = lokasi.split(',');
-  if (parts.length < 2) return null;
-  const lat = parts[0].trim();
-  const lng = parts[1].trim();
-  if (!lat || !lng || Number.isNaN(Number(lat)) || Number.isNaN(Number(lng))) return null;
-  return `https://www.google.com/maps?q=${lat},${lng}`;
-}
-
 async function readFotoBuffer(fotoUrl?: string | null): Promise<Buffer | null> {
   if (!fotoUrl || !fotoUrl.startsWith('/uploads/')) return null;
   const filePath = normalize(join(process.cwd(), fotoUrl));
@@ -65,16 +75,26 @@ async function readFotoBuffer(fotoUrl?: string | null): Promise<Buffer | null> {
   }
 }
 
-function decodeTtdBuffer(ttd?: string | null): Buffer | null {
-  if (!ttd) return null;
-  const match = /^data:image\/(png|jpe?g);base64,([a-zA-Z0-9+/=]+)$/.exec(ttd.trim());
-  if (!match) return null;
+// File foto absensi asli bisa ratusan KB — kalau di-embed apa adanya ke
+// laporan yang isinya ratusan/ribuan baris (rekap "semua guru" mingguan/
+// bulanan), ukuran PDF-nya bisa bengkak sampai ratusan MB. Thumbnail kecil
+// (JPEG kualitas sedang) tetap menampilkan foto SUNGGUHAN di laporan
+// (bukan teks placeholder) dan cukup besar untuk terlihat jelas, tapi
+// ukurannya cuma beberapa KB per baris — dipakai di semua varian laporan
+// supaya filenya tetap ringan walau ribuan baris.
+async function readFotoThumbnail(fotoUrl?: string | null): Promise<Buffer | null> {
+  const original = await readFotoBuffer(fotoUrl);
+  if (!original) return null;
   try {
-    return Buffer.from(match[2], 'base64');
+    return await sharp(original).rotate().resize(220, 220, { fit: 'cover' }).jpeg({ quality: 70 }).toBuffer();
   } catch {
     return null;
   }
 }
+
+const STATUS_LABEL: Record<'HADIR' | 'IZIN' | 'ALFA', string> = { HADIR: 'Hadir', IZIN: 'Izin', ALFA: 'Alfa' };
+const STATUS_COLOR: Record<'HADIR' | 'IZIN' | 'ALFA', string> = { HADIR: '#00A34A', IZIN: '#F59E0B', ALFA: '#94A3B8' };
+const VERIFIED_COLOR = '#2563EB';
 
 function formatTanggal(tanggal: string): string {
   try {
@@ -131,24 +151,18 @@ function header(doc: PDFKit.PDFDocument, title: string, subtitle: string, conten
   return y + 36;
 }
 
-// Kartu ringkasan kecil (label kecil + angka besar) — dipakai untuk pita
-// statistik "Total Kegiatan / Kehadiran / Persentase" di laporan rentang
-// (mingguan/bulanan) supaya angka pentingnya langsung kelihatan, bukan
-// cuma terselip di dalam tabel.
-function statBox(
-  doc: PDFKit.PDFDocument,
-  x: number, y: number, w: number, h: number,
-  label: string, value: string,
-  bg: string, fg: string,
-) {
-  doc.roundedRect(x, y, w, h, 8).fill(bg);
-  doc.font('Satoshi').fontSize(7.5).fillColor(fg).opacity(0.75).text(label.toUpperCase(), x + 10, y + 9, { width: w - 20, characterSpacing: 0.4 });
-  doc.opacity(1);
-  doc.font('Satoshi-Bold').fontSize(17).fillColor(fg).text(value, x + 10, y + 22, { width: w - 20 });
-}
-
 @Injectable()
 export class AbsensiHarianPdfService {
+  // Tabel landscape: Nama (kalau includeNama) - Tanggal - Jam Absen -
+  // Kegiatan - Status - Foto - Catatan. Lokasi/TTD sengaja tidak ikut
+  // kolom ini (beda dari versi lama). Foto selalu foto sungguhan (pakai
+  // thumbnail kecil dari readFotoThumbnail, bukan teks placeholder) — tetap
+  // ringan walau laporannya ribuan baris karena ukurannya sudah dikecilkan
+  // dulu sebelum di-embed, lihat komentar readFotoThumbnail. Kolom
+  // "Catatan": sudah diverifikasi admin → selalu "Terverifikasi" (catatan
+  // tertulisnya tidak dipakai di kolom ini kalau sudah diverifikasi);
+  // belum diverifikasi tapi admin sempat menulis catatan → tampilkan
+  // catatan itu; belum diverifikasi & tidak ada catatan → "-".
   private async renderRowsTable(
     doc: PDFKit.PDFDocument,
     rows: AbsensiRow[],
@@ -156,13 +170,24 @@ export class AbsensiHarianPdfService {
     margin: number,
     contentWidth: number,
     includeNama: boolean,
+    // true buat laporan rentang (mingguan/bulanan) — baris-barisnya
+    // mencakup banyak tanggal sekaligus, jadi tiap kali tanggalnya berganti
+    // disisipkan pita pembatas "Senin, 14 September 2026" supaya jelas mana
+    // milik hari yang mana. Laporan harian (semua barisnya 1 tanggal yang
+    // sama, sudah ada di subjudul header) tidak perlu ini.
+    showDateSeparators = false,
   ) {
     let y = startY;
-    const headers = includeNama ? ['Nama', 'Kegiatan', 'Jam', 'Lokasi', 'Foto', 'TTD'] : ['Kegiatan', 'Jam', 'Lokasi', 'Foto', 'TTD'];
-    const colFrac = includeNama ? [0.22, 0.2, 0.1, 0.28, 0.1, 0.1] : [0.28, 0.12, 0.35, 0.12, 0.13];
+    const headers = includeNama
+      ? ['Nama', 'Tanggal', 'Jam Absen', 'Kegiatan', 'Status', 'Foto', 'Catatan']
+      : ['Tanggal', 'Jam Absen', 'Kegiatan', 'Status', 'Foto', 'Catatan'];
+    const colFrac = includeNama ? [0.16, 0.11, 0.08, 0.18, 0.09, 0.14, 0.24] : [0.13, 0.09, 0.22, 0.1, 0.16, 0.3];
     const colWidths = colFrac.map((f) => f * contentWidth);
-    const rowH = 46;
-    const thumb = 34;
+    const rowH = 96;
+    const thumb = 80;
+    const sepH = 22;
+
+    const addLandscapePage = () => doc.addPage({ size: 'A4', layout: 'landscape', margin });
 
     const drawHeader = () => {
       doc.roundedRect(margin, y, contentWidth, 18, 3).fill(BRAND);
@@ -182,47 +207,63 @@ export class AbsensiHarianPdfService {
       return;
     }
 
+    let lastTanggal: string | null = null;
     for (const r of rows) {
-      if (y + rowH > doc.page.height - margin) {
-        doc.addPage();
+      const isNewDate = showDateSeparators && r.tanggal != null && r.tanggal !== lastTanggal;
+      const neededHeight = rowH + (isNewDate ? sepH : 0);
+      if (y + neededHeight > doc.page.height - margin) {
+        addLandscapePage();
         y = margin;
         drawHeader();
       }
+      if (isNewDate) {
+        doc.roundedRect(margin, y, contentWidth, sepH, 3).fill(BRAND_TINT);
+        doc.font('Satoshi-Bold').fontSize(8.5).fillColor(BRAND)
+          .text(formatTanggal(r.tanggal!), margin + 8, y + 6, { width: contentWidth - 16 });
+        doc.font('Satoshi');
+        y += sepH;
+        lastTanggal = r.tanggal!;
+      }
+      const textY = y + (rowH - 11) / 2;
       let cx = margin;
+      const tanggalLabel = r.tanggal ? formatTanggalRingkas(r.tanggal) : '-';
       const cells = includeNama
-        ? [r.nama || '-', r.kegiatanNama, r.waktuAbsen, r.lokasi]
-        : [r.kegiatanNama, r.waktuAbsen, r.lokasi];
-      const cellStartIdx = includeNama ? 0 : 0;
-      doc.fontSize(8.5).fillColor(INK);
+        ? [r.nama || '-', tanggalLabel, r.waktuAbsen, r.kegiatanNama]
+        : [tanggalLabel, r.waktuAbsen, r.kegiatanNama];
+      doc.font('Satoshi').fontSize(8.5).fillColor(INK);
       cells.forEach((text, i) => {
-        const colI = cellStartIdx + i;
-        if (colI === (includeNama ? 3 : 2)) {
-          const url = googleMapsUrl(r.lokasi);
-          if (url) {
-            doc.fillColor('#2563EB').text(text, cx + 4, y + 6, { width: colWidths[colI] - 8, link: url, underline: true });
-            doc.fillColor(INK);
-          } else {
-            doc.text(text, cx + 4, y + 6, { width: colWidths[colI] - 8 });
-          }
-        } else {
-          doc.text(text, cx + 4, y + 6, { width: colWidths[colI] - 8 });
-        }
-        cx += colWidths[colI];
+        doc.text(text, cx + 4, textY, { width: colWidths[i] - 8 });
+        cx += colWidths[i];
       });
 
-      const fotoColI = includeNama ? 4 : 3;
-      const ttdColI = includeNama ? 5 : 4;
-      const fotoX = margin + colWidths.slice(0, fotoColI).reduce((a, b) => a + b, 0);
-      const ttdX = margin + colWidths.slice(0, ttdColI).reduce((a, b) => a + b, 0);
+      const statusColI = includeNama ? 4 : 3;
+      const statusX = margin + colWidths.slice(0, statusColI).reduce((a, b) => a + b, 0);
+      const status = r.status ?? 'HADIR';
+      doc.font('Satoshi-Bold').fontSize(8.5).fillColor(STATUS_COLOR[status])
+        .text(STATUS_LABEL[status], statusX + 4, textY, { width: colWidths[statusColI] - 8 });
 
-      const [fotoBuf] = await Promise.all([readFotoBuffer(r.foto)]);
-      const ttdBuf = decodeTtdBuffer(r.ttd);
+      const fotoColI = includeNama ? 5 : 4;
+      const fotoX = margin + colWidths.slice(0, fotoColI).reduce((a, b) => a + b, 0);
+      const fotoBuf = await readFotoThumbnail(r.foto);
       if (fotoBuf) {
-        try { doc.image(fotoBuf, fotoX + 6, y + 4, { width: thumb, height: thumb, fit: [thumb, thumb] }); } catch { /* skip unreadable image */ }
+        try { doc.image(fotoBuf, fotoX + 6, y + (rowH - thumb) / 2, { width: thumb, height: thumb, fit: [thumb, thumb] }); } catch { /* skip unreadable image */ }
+      } else {
+        doc.font('Satoshi').fontSize(8.5).fillColor('#cbd5e1').text('-', fotoX + 4, textY, { width: colWidths[fotoColI] - 8 });
       }
-      if (ttdBuf) {
-        try { doc.image(ttdBuf, ttdX + 6, y + 8, { width: thumb + 20, height: thumb - 10, fit: [thumb + 20, thumb - 10] }); } catch { /* skip */ }
-      }
+
+      const catatanColI = includeNama ? 6 : 5;
+      const catatanX = margin + colWidths.slice(0, catatanColI).reduce((a, b) => a + b, 0);
+      // Isi catatan tertulis admin SELALU diutamakan (kalau ada) — jangan
+      // ditimpa "Terverifikasi" walau baris ini sudah diverifikasi, karena
+      // catatan tertulis (mis. "Salah isi kegiatan") lebih informatif
+      // daripada sekadar status verifikasi polos. "Terverifikasi" cuma
+      // dipakai sebagai fallback kalau diverifikasi TANPA catatan tertulis.
+      const adminSuffix = r.verifiedByNama ? ` — ${r.verifiedByNama}` : '';
+      const catatanText = r.catatan ? `${r.catatan}${adminSuffix}` : r.verified ? `Terverifikasi${adminSuffix}` : '-';
+      const catatanColor = r.catatan ? INK : r.verified ? VERIFIED_COLOR : '#cbd5e1';
+      doc.font(r.verified && !r.catatan ? 'Satoshi-Bold' : 'Satoshi').fontSize(8).fillColor(catatanColor)
+        .text(catatanText, catatanX + 4, y + 6, { width: colWidths[catatanColI] - 8, height: rowH - 12, ellipsis: true });
+      doc.fillColor(INK);
 
       doc.moveTo(margin, y + rowH).lineTo(margin + contentWidth, y + rowH).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
       y += rowH;
@@ -231,7 +272,7 @@ export class AbsensiHarianPdfService {
 
   async build(rekap: RekapHarian): Promise<Buffer> {
     const { doc, done } = newDoc();
-    doc.addPage();
+    doc.addPage({ size: 'A4', layout: 'landscape', margin: 40 });
     const margin = 40;
     const contentWidth = doc.page.width - margin * 2;
     let y = header(doc, 'LAPORAN ABSENSI KEGIATAN', formatTanggal(rekap.tanggal), contentWidth, margin);
@@ -249,123 +290,73 @@ export class AbsensiHarianPdfService {
       y += 8;
     }
 
-    await this.renderRowsTable(doc, rekap.rows, y, margin, contentWidth, true);
+    const rowsWithTanggal = rekap.rows.map((r) => ({ ...r, tanggal: rekap.tanggal }));
+    await this.renderRowsTable(doc, rowsWithTanggal, y, margin, contentWidth, true);
     doc.end();
     return done;
   }
 
   async buildGuru(rekap: RekapGuruHarian): Promise<Buffer> {
     const { doc, done } = newDoc();
-    doc.addPage();
+    doc.addPage({ size: 'A4', layout: 'landscape', margin: 40 });
     const margin = 40;
     const contentWidth = doc.page.width - margin * 2;
     const y = header(doc, 'LAPORAN ABSENSI KEGIATAN', `${rekap.guruNama ?? '-'} · ${formatTanggal(rekap.tanggal)}`, contentWidth, margin);
-    await this.renderRowsTable(doc, rekap.rows, y, margin, contentWidth, false);
+    const rowsWithTanggal = rekap.rows.map((r) => ({ ...r, tanggal: rekap.tanggal }));
+    await this.renderRowsTable(doc, rowsWithTanggal, y, margin, contentWidth, false);
     doc.end();
     return done;
   }
 
+  // Sama seperti build() harian — landscape, tabel per-submission (bukan
+  // ringkasan per-guru) — tapi "Alfa" tidak disertakan di sini (lihat
+  // komentar di getRekapRangeForExport, rentang panjang bisa membengkak).
   async buildRange(rekap: RekapRange): Promise<Buffer> {
     const { doc, done } = newDoc();
-    doc.addPage();
+    doc.addPage({ size: 'A4', layout: 'landscape', margin: 40 });
     const margin = 40;
     const contentWidth = doc.page.width - margin * 2;
     const { title, subtitle } = rangeTitle(rekap.mode, rekap.tanggalMulai, rekap.tanggalSelesai);
-    let y = header(doc, title, subtitle, contentWidth, margin);
+    const y = header(doc, title, subtitle, contentWidth, margin);
 
-    const boxGap = 10;
-    const boxW = (contentWidth - boxGap * 2) / 3;
-    const boxH = 46;
-    statBox(doc, margin, y, boxW, boxH, 'Total Kegiatan', `${rekap.totalKegiatan}`, BRAND_TINT, BRAND);
-    statBox(doc, margin + boxW + boxGap, y, boxW, boxH, 'Total Kehadiran', `${rekap.totalHadirKeseluruhan}/${rekap.totalKegiatanKeseluruhan}`, BRAND_TINT, BRAND);
-    statBox(doc, margin + (boxW + boxGap) * 2, y, boxW, boxH, 'Persentase Kehadiran', `${rekap.persentaseKeseluruhan}%`, BRAND, '#ffffff');
-    doc.font('Satoshi');
-    y += boxH + 16;
-
-    const headers = ['Nama', 'NPY', 'Kegiatan Diikuti', 'Kehadiran'];
-    const colFrac = [0.4, 0.22, 0.2, 0.18];
-    const colWidths = colFrac.map((f) => f * contentWidth);
-    const drawTableHeader = () => {
-      doc.roundedRect(margin, y, contentWidth, 18, 3).fill(BRAND);
-      let hx = margin;
-      doc.font('Satoshi-Bold');
-      headers.forEach((h, i) => {
-        doc.fontSize(8).fillColor('#ffffff').text(h.toUpperCase(), hx + 6, y + 5, { width: colWidths[i] - 6 });
-        hx += colWidths[i];
-      });
-      doc.font('Satoshi');
-      y += 18;
-    };
-    drawTableHeader();
-
-    rekap.guru.forEach((g, idx) => {
-      if (y + 22 > doc.page.height - margin) { doc.addPage(); y = margin; drawTableHeader(); }
-      if (idx % 2 === 1) doc.rect(margin, y, contentWidth, 22).fill('#f8fafc');
-      let cx = margin;
-      doc.fontSize(8.5).fillColor(INK);
-      [g.nama || '-', g.npy || '-', `${g.hadir}/${g.totalKegiatan}`].forEach((text, i) => {
-        doc.text(text, cx + 6, y + 5, { width: colWidths[i] - 8 });
-        cx += colWidths[i];
-      });
-      doc.font('Satoshi-Bold').fillColor(g.persentaseKehadiran >= 75 ? '#00A34A' : '#EF4444')
-        .text(`${g.persentaseKehadiran}%`, cx + 6, y + 5, { width: colWidths[3] - 8 });
-      doc.font('Satoshi');
-      doc.moveTo(margin, y + 22).lineTo(margin + contentWidth, y + 22).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
-      y += 22;
-    });
-
+    await this.renderRowsTable(doc, rekap.rows, y, margin, contentWidth, true, true);
     doc.end();
     return done;
   }
 
   async buildGuruRange(rekap: RekapGuruRange): Promise<Buffer> {
     const { doc, done } = newDoc();
-    doc.addPage();
+    doc.addPage({ size: 'A4', layout: 'landscape', margin: 40 });
     const margin = 40;
     const contentWidth = doc.page.width - margin * 2;
     const { title, subtitle } = rangeTitle(rekap.mode, rekap.tanggalMulai, rekap.tanggalSelesai);
-    let y = header(doc, title, `${rekap.guruNama ?? '-'} · ${subtitle}`, contentWidth, margin);
+    const y = header(doc, title, `${rekap.guruNama ?? '-'} · ${subtitle}`, contentWidth, margin);
 
-    const boxGap = 10;
-    const boxW = (contentWidth - boxGap * 2) / 3;
-    const boxH = 46;
-    statBox(doc, margin, y, boxW, boxH, 'Total Kegiatan', `${rekap.summary.totalKegiatan}`, BRAND_TINT, BRAND);
-    statBox(doc, margin + boxW + boxGap, y, boxW, boxH, 'Diikuti', `${rekap.summary.hadir}`, BRAND_TINT, BRAND);
-    statBox(doc, margin + (boxW + boxGap) * 2, y, boxW, boxH, 'Persentase Kehadiran', `${rekap.summary.persentaseKehadiran}%`, BRAND, '#ffffff');
-    doc.font('Satoshi');
-    y += boxH + 16;
-
-    const headers = ['Tanggal', 'Kegiatan', 'Status', 'Jam Absen'];
-    const colFrac = [0.2, 0.4, 0.2, 0.2];
-    const colWidths = colFrac.map((f) => f * contentWidth);
-    const drawTableHeader = () => {
-      doc.roundedRect(margin, y, contentWidth, 18, 3).fill(BRAND);
-      let hx = margin;
-      doc.font('Satoshi-Bold');
-      headers.forEach((h, i) => {
-        doc.fontSize(8).fillColor('#ffffff').text(h.toUpperCase(), hx + 6, y + 5, { width: colWidths[i] - 6 });
-        hx += colWidths[i];
-      });
-      doc.font('Satoshi');
-      y += 18;
-    };
-    drawTableHeader();
-
-    for (const r of rekap.rows) {
-      if (y + 20 > doc.page.height - margin) { doc.addPage(); y = margin; drawTableHeader(); }
-      let cx = margin;
-      doc.fontSize(8.5).fillColor(INK);
-      [r.tanggal, r.kegiatanNama].forEach((text, i) => {
-        doc.text(text, cx + 6, y + 5, { width: colWidths[i] - 8 });
-        cx += colWidths[i];
-      });
-      doc.fillColor(r.hadir ? '#00D67F' : '#EF4444').text(r.hadir ? 'Hadir' : 'Tidak Hadir', cx + 6, y + 5, { width: colWidths[2] - 8 });
-      cx += colWidths[2];
-      doc.fillColor(INK).text(r.waktuAbsen || '-', cx + 6, y + 5, { width: colWidths[3] - 8 });
-      doc.moveTo(margin, y + 20).lineTo(margin + contentWidth, y + 20).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
-      y += 20;
-    }
-
+    // Baris "Tidak Hadir" (r.hadir === false) tidak punya foto/catatan sama
+    // sekali — disaring dulu (beda dari tabel harian yang menampilkan Alfa)
+    // karena di sini "Tidak Hadir" tidak selalu berarti benar-benar alfa
+    // (lihat getGuruAbsensiRangeForExport: hanya kegiatan yang relevan buat
+    // guru ini yang masuk daftar, jadi baris kosong di sini kurang
+    // informatif dibanding ringkasan persentase di atas).
+    const rows: AbsensiRow[] = rekap.rows
+      .filter((r) => r.hadir)
+      .map((r) => ({
+        id: `${r.tanggal}-${r.kegiatanNama}`,
+        guruId: '',
+        nama: null,
+        npy: null,
+        kegiatanNama: r.kegiatanNama,
+        tanggal: r.tanggal,
+        waktuAbsen: r.waktuAbsen ?? '-',
+        lokasi: r.lokasi ?? '',
+        foto: r.foto ?? '',
+        ttd: r.ttd ?? '',
+        verified: r.verified ?? false,
+        verifiedByNama: r.verifiedByNama ?? null,
+        catatan: r.catatan ?? null,
+        status: r.status ?? 'HADIR',
+      }));
+    await this.renderRowsTable(doc, rows, y, margin, contentWidth, false, true);
     doc.end();
     return done;
   }

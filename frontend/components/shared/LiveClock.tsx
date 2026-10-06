@@ -31,7 +31,7 @@ function jakartaNow() {
   };
 }
 
-export function LiveClock({ variant = "header" }: { variant?: "header" | "compact" | "topbar" }) {
+export function LiveClock({ variant = "header" }: { variant?: "header" | "compact" | "topbar" | "hero" }) {
   const [now, setNow] = useState<ReturnType<typeof jakartaNow> | null>(null);
 
   useEffect(() => {
@@ -49,6 +49,27 @@ export function LiveClock({ variant = "header" }: { variant?: "header" | "compac
       <div className="flex items-center gap-2 rounded-xl bg-white/12 px-3 py-1.5 backdrop-blur-sm">
         <Clock size={11} className="shrink-0 animate-pulse text-[#000000]" />
         <span className="text-xs font-bold tabular-nums text-white">{jam}</span>
+      </div>
+    );
+  }
+
+  // Jam besar & mencolok untuk kartu hero (mis. "Card Utama Absensi" di
+  // menu mobile) — jam:menit jadi fokus visual utama (besar, tebal, drop
+  // shadow), detik dibuat kecil di samping dengan titik live yang berdenyut
+  // supaya terasa "hidup"/real-time, bukan cuma angka statis.
+  if (variant === "hero") {
+    return (
+      <div className="flex items-end justify-center gap-2">
+        <span className="font-mono text-[46px] font-black leading-none tracking-tight text-white [text-shadow:0_4px_16px_rgba(0,0,0,0.35)] sm:text-6xl">
+          {now.hour}:{now.minute}
+        </span>
+        <span className="mb-1.5 flex items-center gap-1.5">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+          </span>
+          <span className="font-mono text-base font-bold text-white/75 sm:text-lg">{now.second}</span>
+        </span>
       </div>
     );
   }

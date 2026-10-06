@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { motion, type Variants } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { Eye, EyeOff, Loader2, User, Lock } from "lucide-react";
+import { BrandedLoadingOverlay } from "@/components/shared/BrandedLoadingOverlay";
 
 const container: Variants = {
   hidden: {},
@@ -24,6 +25,7 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,8 +56,13 @@ export function LoginForm() {
       }
 
       sessionStorage.setItem("lms_session", "1");
+      const namaDepan = (data.user?.nama as string | undefined)?.split(" ")[0] ?? "";
+      const greeting = namaDepan ? `Selamat datang, ${namaDepan}!` : "Selamat datang!";
       const role = (data.user?.role as string)?.toLowerCase() ?? "guru";
-      window.location.replace(role === "admin" ? "/admin/dashboard" : "/guru/absensi-harian");
+      setRedirecting(greeting);
+      setTimeout(() => {
+        window.location.replace(role === "admin" ? "/admin/dashboard" : "/guru/absensi-harian");
+      }, 1600);
     } catch {
       setError("Tidak dapat terhubung ke server. Periksa koneksi Anda.");
       setLoading(false);
@@ -63,12 +70,13 @@ export function LoginForm() {
   }
 
   return (
+    <>
     <motion.form
       onSubmit={handleSubmit}
       initial="hidden"
       animate="visible"
       variants={container}
-      className="mt-8 flex flex-col gap-5"
+      className="mt-0 flex flex-col gap-2.5 sm:mt-8 sm:gap-5"
     >
       <motion.div variants={item} className="flex flex-col gap-1.5">
         <label htmlFor="login" className="text-sm font-medium text-black/70">
@@ -142,7 +150,7 @@ export function LoginForm() {
         disabled={loading}
         whileHover={!loading ? { scale: 1.02 } : undefined}
         whileTap={!loading ? { scale: 0.98 } : undefined}
-        className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(0, 200, 83,0.55)] transition-all hover:shadow-[0_14px_40px_-8px_rgba(0, 200, 83,0.70)] hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-70"
+        className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(0, 200, 83,0.55)] transition-all hover:shadow-[0_14px_40px_-8px_rgba(0, 200, 83,0.70)] hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-70 sm:mt-2"
         style={{ background: "#00C853" }}
       >
         {loading ? (
@@ -155,5 +163,10 @@ export function LoginForm() {
         )}
       </motion.button>
     </motion.form>
+
+    <AnimatePresence>
+      {redirecting && <BrandedLoadingOverlay greeting={redirecting} />}
+    </AnimatePresence>
+    </>
   );
 }

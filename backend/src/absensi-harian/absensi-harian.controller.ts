@@ -10,7 +10,10 @@ import type { Response } from 'express';
 import { AbsensiHarianService } from './absensi-harian.service';
 import { AbsensiHarianPdfService } from './absensi-harian-pdf.service';
 import { AbsensiHarianExcelService } from './absensi-harian-excel.service';
-import { CreateKegiatanDto, UpdateKegiatanDto, AbsenKegiatanDto, KirimPengingatDto, VerifikasiAbsensiDto } from './dto/absensi-harian.dto';
+import {
+  CreateKegiatanDto, UpdateKegiatanDto, AbsenKegiatanDto, KirimPengingatDto, VerifikasiAbsensiDto,
+  CreateKegiatanRecurringDto, UpdateKegiatanRecurringDto,
+} from './dto/absensi-harian.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -77,6 +80,36 @@ export class AbsensiHarianController {
   @Delete('kegiatan/:id')
   deleteKegiatan(@Param('id') id: string) {
     return this.service.deleteKegiatan(id);
+  }
+
+  // ── Kegiatan berulang mingguan (admin) ──────────────────────────────────
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('kegiatan-recurring')
+  listKegiatanRecurring() {
+    return this.service.listKegiatanRecurring();
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post('kegiatan-recurring')
+  createKegiatanRecurring(@Body() dto: CreateKegiatanRecurringDto, @Request() req: any) {
+    return this.service.createKegiatanRecurring(dto, req.user.id);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch('kegiatan-recurring/:id')
+  updateKegiatanRecurring(@Param('id') id: string, @Body() dto: UpdateKegiatanRecurringDto) {
+    return this.service.updateKegiatanRecurring(id, dto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Delete('kegiatan-recurring/:id')
+  deleteKegiatanRecurring(@Param('id') id: string) {
+    return this.service.deleteKegiatanRecurring(id);
   }
 
   // ── Guru: kegiatan hari ini + absen sendiri ──────────────────────────────
@@ -157,6 +190,13 @@ export class AbsensiHarianController {
   }
 
   // ── Export ────────────────────────────────────────────────────────────────
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('export-guru-roster')
+  getExportGuruRoster() {
+    return this.service.getExportGuruRoster();
+  }
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)

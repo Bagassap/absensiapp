@@ -122,13 +122,23 @@ export function AbsensiHarianTable({
                     </p>
                   )}
                 </div>
-                <p className="flex min-w-0 items-center gap-1 truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  <span className="truncate">{r.kegiatanNama}</span>
-                  <span className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-extrabold text-white"
-                    style={{ backgroundColor: r.status === "IZIN" ? "#F59E0B" : "#00C853" }}>
-                    {r.status === "IZIN" ? "Izin" : "Hadir"}
-                  </span>
-                </p>
+                <div className="min-w-0">
+                  <p className="flex min-w-0 items-center gap-1 truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    <span className="truncate">{r.kegiatanNama}</span>
+                    <span className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-extrabold text-white"
+                      style={{ backgroundColor: r.status === "IZIN" ? "#F59E0B" : r.status === "ALFA" ? "#94A3B8" : "#00C853" }}>
+                      {r.status === "IZIN" ? "Izin" : r.status === "ALFA" ? "Alfa" : "Hadir"}
+                    </span>
+                  </p>
+                  {/* Label pembeda "absen untuk piket yang mana" — kegiatan
+                      lain tidak butuh keterangan tambahan karena namanya
+                      sendiri (mis. "Rapat Bulanan") sudah cukup jelas. */}
+                  {r.keterangan && (
+                    <p title={r.keterangan} className="mt-0.5 truncate text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                      {r.keterangan}
+                    </p>
+                  )}
+                </div>
                 <span className="text-center text-sm font-semibold tabular-nums text-slate-500 dark:text-slate-400">{r.waktuAbsen}</span>
                 <div className="hidden min-w-0 sm:block">
                   {lokasiParsed ? (
@@ -157,17 +167,23 @@ export function AbsensiHarianTable({
                   ) : <PenTool size={13} className="text-slate-200 dark:text-slate-700" />}
                 </div>
                 <div className="flex items-center justify-end gap-1.5">
-                  <button onClick={openDokumen} title="Lihat detail"
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:scale-105 active:scale-95"
-                    style={{ background: "#00C853" }}>
-                    <Eye size={13} />
-                  </button>
-                  {onDelete && (
-                    <button onClick={() => onDelete(r)} disabled={deletingId === r.id} title="Hapus absensi"
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:scale-105 active:scale-95 disabled:cursor-wait disabled:opacity-60"
-                      style={{ background: "#EF4444" }}>
-                      {deletingId === r.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                    </button>
+                  {r.status === "ALFA" ? (
+                    <span className="text-[10px] font-semibold text-slate-300 dark:text-slate-600">—</span>
+                  ) : (
+                    <>
+                      <button onClick={openDokumen} title="Lihat detail"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:scale-105 active:scale-95"
+                        style={{ background: "#00C853" }}>
+                        <Eye size={13} />
+                      </button>
+                      {onDelete && (
+                        <button onClick={() => onDelete(r)} disabled={deletingId === r.id} title="Hapus absensi"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-sm transition-all hover:shadow-md hover:scale-105 active:scale-95 disabled:cursor-wait disabled:opacity-60"
+                          style={{ background: "#EF4444" }}>
+                          {deletingId === r.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </motion.div>
