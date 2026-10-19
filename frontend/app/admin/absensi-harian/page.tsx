@@ -11,6 +11,7 @@ import {
   ChevronRight, X, Settings, TrendingDown,
 } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
+import { useConfirm } from "@/components/shared/ConfirmSheet";
 import { DokumenModal } from "@/components/absensi-harian/DokumenModal";
 import { ExportButtons } from "@/components/absensi-harian/ExportButtons";
 import { useExportRange } from "@/components/absensi-harian/useExportRange";
@@ -200,6 +201,7 @@ function UnduhLaporanPanel({ exportRange, guruRoster }: {
 
 export default function AdminAbsensiHarianPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const tanggalInputRef = useRef<HTMLInputElement>(null);
   const [tanggal, setTanggal] = useState(() => todayJakarta());
   const exportRange = useExportRange(tanggal);
@@ -238,7 +240,7 @@ export default function AdminAbsensiHarianPage() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   async function handleDeleteAbsensi(row: AbsensiKegiatanRow) {
-    if (!confirm(`Hapus absensi "${row.nama ?? "guru ini"}" untuk kegiatan "${row.kegiatanNama}"? Guru akan kembali berstatus belum absen untuk kegiatan ini.`)) return;
+    if (!(await confirm({ title: "Hapus absensi?", message: `Hapus absensi "${row.nama ?? "guru ini"}" untuk kegiatan "${row.kegiatanNama}"? Guru akan kembali berstatus belum absen untuk kegiatan ini.`, confirmLabel: "Hapus" }))) return;
     setDeletingId(row.id);
     try {
       const res = await fetch(`/api/absensi-harian/${row.id}`, { method: "DELETE" });

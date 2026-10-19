@@ -145,6 +145,62 @@ function TableRow({ g, index, onToggleActive, togglingId, onEdit, onResetPasswor
   );
 }
 
+function MobileCard({ g, onToggleActive, togglingId, onEdit, onResetPassword, isSuperAdmin }: {
+  g: GuruRow;
+  onToggleActive: (g: GuruRow) => void;
+  togglingId: string | null;
+  onEdit: (g: GuruRow) => void;
+  onResetPassword: (g: GuruRow) => void;
+  isSuperAdmin: boolean;
+}) {
+  const toggling = togglingId === g.id;
+  const sudahGanti = g.mustChangePassword === false;
+  return (
+    <li className="rounded-3xl border border-slate-100 bg-white p-4 shadow-[0_6px_18px_-12px_rgba(15,23,42,0.18)] dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex items-center gap-3">
+        <Avatar src={g.fotoProfil} nama={g.nama} sizePx={48} fallbackBg={avatarColor(g.nama)} textClassName="text-xs font-extrabold" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-slate-800 dark:text-white">{g.nama}</p>
+          <p className="truncate text-xs text-slate-400">NPY {g.loginId ?? "—"}</p>
+        </div>
+        <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${g.isActive ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10" : "bg-red-50 text-red-500 dark:bg-red-500/10"}`}>
+          {g.isActive ? "Aktif" : "Nonaktif"}
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <span className={`rounded-full px-3.5 py-1.5 text-[11px] font-semibold ${sudahGanti ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10" : "bg-slate-100 text-slate-500 dark:bg-slate-700"}`}>
+          {sudahGanti ? "Password sudah diganti" : "Password masih default"}
+        </span>
+        {g.guru?.noWa && (
+          <a href={waLink(g.guru.noWa)} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3.5 py-1.5 text-[11px] font-semibold text-rose-400 dark:bg-rose-500/10">
+            <MessageCircle size={12} /> {g.guru.noWa}
+          </a>
+        )}
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button type="button" onClick={() => onEdit(g)}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-slate-100 py-2.5 text-xs font-bold text-slate-700 active:bg-slate-200 dark:bg-slate-700 dark:text-slate-200">
+          <Pencil size={13} /> Edit
+        </button>
+        <button type="button" onClick={() => onToggleActive(g)} disabled={toggling}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl py-2.5 text-xs font-bold disabled:opacity-60 ${g.isActive ? "bg-red-50 text-red-500 dark:bg-red-500/10" : "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10"}`}>
+          {toggling ? <Loader2 size={13} className="animate-spin" /> : <Power size={13} />}
+          {g.isActive ? "Nonaktifkan" : "Aktifkan"}
+        </button>
+        {isSuperAdmin && (
+          <button type="button" onClick={() => onResetPassword(g)} aria-label="Reset Password"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white active:bg-slate-700 dark:bg-white dark:text-slate-900">
+            <KeyRound size={15} />
+          </button>
+        )}
+      </div>
+    </li>
+  );
+}
+
 function LoadingSkeleton() {
   return (
     <div className="space-y-3 p-6">
@@ -194,7 +250,13 @@ export function DataGuruTable({
 
     return (
       <>
-        <div className="overflow-x-auto">
+        <ul className="space-y-3 p-3 lg:hidden">
+          {pageItems.map((g) => (
+            <MobileCard key={g.id} g={g} onToggleActive={onToggleActive} togglingId={togglingId} onEdit={onEdit}
+              onResetPassword={onResetPassword ?? (() => {})} isSuperAdmin={isSuperAdmin} />
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-170 text-left text-sm">
             <thead className="border-b border-slate-100 bg-slate-50/60 dark:border-slate-700/40 dark:bg-slate-700/20">
               <TableHead />
@@ -210,8 +272,8 @@ export function DataGuruTable({
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 dark:border-slate-700/40">
           <span className="text-xs text-slate-400 dark:text-slate-500">{start}–{end} dari {guruList.length}</span>
           <div className="flex items-center gap-2.5">
-            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">Tampilkan:</span>
-            <PageSizeToggle value={pageSize} onChange={(n) => { setPageSize(n); setPage(0); }} />
+            <span className="hidden text-xs font-semibold text-slate-400 dark:text-slate-500 lg:inline">Tampilkan:</span>
+            <div className="hidden lg:block"><PageSizeToggle value={pageSize} onChange={(n) => { setPageSize(n); setPage(0); }} /></div>
             {pageCount > 1 && (
               <div className="flex items-center gap-1.5">
                 <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
@@ -232,7 +294,7 @@ export function DataGuruTable({
   })();
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="overflow-hidden rounded-2xl border-slate-100 bg-transparent dark:border-slate-700 lg:border lg:bg-white lg:shadow-sm lg:dark:bg-slate-800">
       {content}
     </div>
   );

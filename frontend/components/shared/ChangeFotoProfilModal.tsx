@@ -66,15 +66,15 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
   const modal = (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-100 flex items-center justify-center p-4"
+        className="fixed inset-0 z-100 flex items-center justify-center p-4 max-lg:items-end max-lg:p-0"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       >
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
         <motion.div
-          className="relative z-10 w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
-          initial={{ scale: 0.92, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.92, opacity: 0 }}
+          className="relative z-10 w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900 max-lg:max-w-none max-lg:rounded-b-none max-lg:rounded-t-[32px] max-lg:max-h-[90dvh] max-lg:pb-[env(safe-area-inset-bottom)] max-lg:before:mx-auto max-lg:before:mb-1 max-lg:before:mt-3 max-lg:before:block max-lg:before:h-1.5 max-lg:before:w-10 max-lg:before:shrink-0 max-lg:before:rounded-full max-lg:before:bg-slate-300 max-lg:before:content-['']"
+          initial={{ opacity: 0, y: 48 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 48 }}
           transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
         >
           <div className="flex items-center justify-between px-6 py-4" style={{ background: gradient }}>

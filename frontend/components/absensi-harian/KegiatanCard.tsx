@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CalendarClock, Clock, Plus, Trash2, Pencil, X, Loader2, Repeat } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
+import { useConfirm } from "@/components/shared/ConfirmSheet";
 import { KEGIATAN_WINDOW_CFG } from "./shared";
 import type { Kegiatan, KegiatanRecurring, HariRecurring } from "./types";
 
@@ -157,6 +158,7 @@ const EMPTY_FORM: FormState = { id: null, nama: "", tanggal: "", jamMulai: "", j
 
 export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChanged?: () => void }) {
   const toast = useToast();
+  const confirm = useConfirm();
   const [list, setList] = useState<Kegiatan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -250,7 +252,7 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
   }
 
   async function handleDelete(k: Kegiatan) {
-    if (!confirm(`Hapus kegiatan "${k.nama}"? Data absensi yang sudah tercatat untuk kegiatan ini akan ikut terhapus.`)) return;
+    if (!(await confirm({ title: "Hapus kegiatan?", message: `Hapus kegiatan "${k.nama}"? Data absensi yang sudah tercatat untuk kegiatan ini akan ikut terhapus.`, confirmLabel: "Hapus" }))) return;
     try {
       const res = await fetch(`/api/absensi-harian/kegiatan/${k.id}`, { method: "DELETE" });
       const data = await res.json().catch(() => null);
@@ -323,7 +325,7 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
   }
 
   async function handleDeleteRecurring(r: KegiatanRecurring) {
-    if (!confirm(`Hentikan kegiatan berulang "${r.nama}" (tiap ${formatHariList(r.hari)})? Kegiatan yang sudah pernah dibuat dari aturan ini tidak ikut terhapus.`)) return;
+    if (!(await confirm({ title: "Hentikan kegiatan berulang?", message: `Hentikan kegiatan berulang "${r.nama}" (tiap ${formatHariList(r.hari)})? Kegiatan yang sudah pernah dibuat dari aturan ini tidak ikut terhapus.`, confirmLabel: "Hentikan" }))) return;
     try {
       const res = await fetch(`/api/absensi-harian/kegiatan-recurring/${r.id}`, { method: "DELETE" });
       const data = await res.json().catch(() => null);
@@ -338,7 +340,7 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
   const oneOffList = list.filter((k) => !k.recurringSourceId);
 
   return (
-    <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-[0_6px_18px_-12px_rgba(15,23,42,0.18)] dark:border-slate-700 dark:bg-slate-800 lg:p-5">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "#00C853" }}>
@@ -352,7 +354,7 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
         <motion.button
           type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={openCreate}
-          className="flex items-center gap-1 rounded-lg bg-[#00C853] px-3 py-1.5 text-xs font-bold text-white shadow-sm"
+          className="flex shrink-0 items-center gap-1 rounded-full bg-[#00C853] px-4 py-2 text-xs font-bold text-white shadow-sm"
         >
           <Plus size={13} /> Tambah Kegiatan
         </motion.button>
@@ -369,7 +371,7 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
           {oneOffList.map((k) => {
             const cfg = KEGIATAN_WINDOW_CFG[k.window];
             return (
-              <div key={k.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700/30">
+              <div key={k.id} className="flex items-center justify-between gap-2 rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-700/30">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <p className="truncate text-sm font-bold text-slate-700 dark:text-slate-200">{k.nama}</p>
@@ -383,11 +385,11 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
                   </p>
                 </div>
                 <button type="button" onClick={() => openEdit(k)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-[#000000] dark:hover:bg-slate-700">
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-slate-500 active:bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
                   <Pencil size={13} />
                 </button>
                 <button type="button" onClick={() => handleDelete(k)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20">
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-red-400 active:bg-red-50 dark:bg-slate-700">
                   <Trash2 size={13} />
                 </button>
               </div>
@@ -411,7 +413,7 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
         <motion.button
           type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={openCreateRecurring}
-          className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-sm" style={{ background: "#3B82F6" }}
+          className="flex shrink-0 items-center gap-1 rounded-full px-4 py-2 text-xs font-bold text-white shadow-sm" style={{ background: "#3B82F6" }}
         >
           <Plus size={13} /> Tambah Berulang
         </motion.button>
@@ -424,7 +426,7 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
       ) : (
         <div className="space-y-1.5">
           {recurringList.map((r) => (
-            <div key={r.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700/30">
+            <div key={r.id} className="flex items-center justify-between gap-2 rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-700/30">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <p className="truncate text-sm font-bold text-slate-700 dark:text-slate-200">{r.nama}</p>
@@ -438,11 +440,11 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
                 </p>
               </div>
               <button type="button" onClick={() => openEditRecurring(r)}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-[#000000] dark:hover:bg-slate-700">
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-slate-500 active:bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
                 <Pencil size={13} />
               </button>
               <button type="button" onClick={() => handleDeleteRecurring(r)}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20">
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-red-400 active:bg-red-50 dark:bg-slate-700">
                 <Trash2 size={13} />
               </button>
             </div>
@@ -454,10 +456,10 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
         {showRecurringForm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setShowRecurringForm(false)}
-            className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm max-lg:items-end max-lg:p-0">
+            <motion.div initial={{ opacity: 0, y: 48 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 48 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-800">
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-800 max-lg:max-h-[90dvh] max-lg:max-w-none max-lg:overflow-y-auto max-lg:rounded-b-none max-lg:rounded-t-[32px] max-lg:pb-[max(1.5rem,env(safe-area-inset-bottom))] max-lg:before:mx-auto max-lg:before:mb-1 max-lg:before:mt-3 max-lg:before:block max-lg:before:h-1.5 max-lg:before:w-10 max-lg:before:shrink-0 max-lg:before:rounded-full max-lg:before:bg-slate-300 max-lg:before:content-['']">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-800 dark:text-white">{recurringForm.id ? "Edit Kegiatan Berulang" : "Tambah Kegiatan Berulang"}</h2>
@@ -517,10 +519,10 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
         {showForm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setShowForm(false)}
-            className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm max-lg:items-end max-lg:p-0">
+            <motion.div initial={{ opacity: 0, y: 48 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 48 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-800">
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-800 max-lg:max-h-[90dvh] max-lg:max-w-none max-lg:overflow-y-auto max-lg:rounded-b-none max-lg:rounded-t-[32px] max-lg:pb-[max(1.5rem,env(safe-area-inset-bottom))] max-lg:before:mx-auto max-lg:before:mb-1 max-lg:before:mt-3 max-lg:before:block max-lg:before:h-1.5 max-lg:before:w-10 max-lg:before:shrink-0 max-lg:before:rounded-full max-lg:before:bg-slate-300 max-lg:before:content-['']">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-800 dark:text-white">{form.id ? "Edit Kegiatan" : "Tambah Kegiatan"}</h2>

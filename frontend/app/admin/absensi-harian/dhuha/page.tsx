@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Plus, Pencil, Trash2, X, Loader2, CalendarDays, Check } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
+import { useConfirm } from "@/components/shared/ConfirmSheet";
 import { todayJakarta } from "@/components/absensi-harian/shared";
 
 type JadwalDhuhaRow = {
@@ -49,6 +50,7 @@ async function readError(res: Response): Promise<string> {
 export default function JadwalDhuhaPage() {
   const router = useRouter();
   const toast = useToast();
+  const confirm = useConfirm();
   const [info, setInfo] = useState<DhuhaInfo | null>(null);
   const [guruOptions, setGuruOptions] = useState<GuruOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,7 +142,7 @@ export default function JadwalDhuhaPage() {
   }
 
   async function remove(row: JadwalDhuhaRow) {
-    if (!window.confirm(`Hapus jadwal ${row.guruNama ?? "guru"} (${row.kelas}) dari Minggu ${row.minggu}?`)) return;
+    if (!(await confirm({ title: "Hapus jadwal?", message: `Hapus jadwal ${row.guruNama ?? "guru"} (${row.kelas}) dari Minggu ${row.minggu}?`, confirmLabel: "Hapus" }))) return;
     setDeletingId(row.id);
     try {
       const res = await fetch(`/api/absensi-harian/dhuha/jadwal/${row.id}`, { method: "DELETE" });

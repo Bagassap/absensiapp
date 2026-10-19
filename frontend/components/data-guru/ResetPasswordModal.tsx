@@ -54,10 +54,10 @@ export function ResetPasswordModal({ guru, onClose, onSaved }: { guru: GuruRow; 
     <AnimatePresence>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={saving ? undefined : onClose}
-        className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-        <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+        className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm max-lg:items-end max-lg:p-0">
+        <motion.div initial={{ opacity: 0, y: 48 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 48 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-800">
+          className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-800 max-lg:max-h-[90dvh] max-lg:max-w-none max-lg:overflow-y-auto max-lg:rounded-b-none max-lg:rounded-t-[32px] max-lg:pb-[max(1.5rem,env(safe-area-inset-bottom))] max-lg:before:mx-auto max-lg:before:mb-1 max-lg:before:mt-3 max-lg:before:block max-lg:before:h-1.5 max-lg:before:w-10 max-lg:before:shrink-0 max-lg:before:rounded-full max-lg:before:bg-slate-300 max-lg:before:content-['']">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "#EF4444" }}>

@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ToastProvider } from "@/components/shared/ToastSystem";
 import { PwaInstall } from "@/components/shared/PwaInstall";
+import { ConfirmProvider } from "@/components/shared/ConfirmSheet";
 
 const satoshi = localFont({
   src: [
@@ -44,7 +45,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-white text-black">
         <PwaInstall />
         <ToastProvider>
-          {children}
+          <ConfirmProvider>{children}</ConfirmProvider>
         </ToastProvider>
       </body>
     </html>

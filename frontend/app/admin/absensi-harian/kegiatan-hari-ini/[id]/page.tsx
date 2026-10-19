@@ -8,6 +8,7 @@ import {
   ChevronLeft, Check, MoreHorizontal, Eye, BadgeCheck, Trash2, Loader2, Users,
 } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
+import { useConfirm } from "@/components/shared/ConfirmSheet";
 import { DokumenModal } from "@/components/absensi-harian/DokumenModal";
 import { Avatar } from "@/components/shared/Avatar";
 import { paginate } from "@/components/shared/PageSizeToggle";
@@ -25,6 +26,7 @@ export default function KegiatanHariIniDetailPage() {
   const kegiatanId = params.id;
   const router = useRouter();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [tanggal] = useState(() => todayJakarta());
   const [rekap, setRekap] = useState<RekapKegiatanHarian | null>(null);
@@ -90,7 +92,7 @@ export default function KegiatanHariIniDetailPage() {
   }
 
   async function handleDeleteAbsensi(row: AbsensiKegiatanRow) {
-    if (!confirm(`Hapus absensi "${row.nama ?? "guru ini"}" untuk kegiatan "${row.kegiatanNama}"? Guru akan kembali berstatus belum absen untuk kegiatan ini.`)) return;
+    if (!(await confirm({ title: "Hapus absensi?", message: `Hapus absensi "${row.nama ?? "guru ini"}" untuk kegiatan "${row.kegiatanNama}"? Guru akan kembali berstatus belum absen untuk kegiatan ini.`, confirmLabel: "Hapus" }))) return;
     setBusyId(row.id);
     try {
       const res = await fetch(`/api/absensi-harian/${row.id}`, { method: "DELETE" });

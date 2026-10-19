@@ -178,12 +178,12 @@ export function LaporanRendahKehadiran({
 
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4 max-lg:items-end max-lg:p-0">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowModal(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.94, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 16 }}
+            <motion.div initial={{ opacity: 0, y: 48 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 48 }}
               transition={{ type: "spring", damping: 26, stiffness: 300 }}
-              className="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900">
+              className="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900 max-lg:max-w-none max-lg:rounded-b-none max-lg:rounded-t-[32px] max-lg:max-h-[90dvh] max-lg:pb-[env(safe-area-inset-bottom)] max-lg:before:mx-auto max-lg:before:mb-1 max-lg:before:mt-3 max-lg:before:block max-lg:before:h-1.5 max-lg:before:w-10 max-lg:before:shrink-0 max-lg:before:rounded-full max-lg:before:bg-slate-300 max-lg:before:content-['']">
 
               <div className="flex shrink-0 flex-wrap items-center gap-3 px-5 py-4" style={{ backgroundColor: "#FEE9EA" }}>
                 <div className="flex min-w-0 items-center gap-2.5">

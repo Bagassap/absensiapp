@@ -86,12 +86,12 @@ export function DokumenModal({ row, tanggal, onClose, onVerifiedChange }: {
         )}
       </AnimatePresence>
 
-      <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-100 flex items-center justify-center p-4 max-lg:items-end max-lg:p-0">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           onClick={onClose} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-        <motion.div initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.94 }}
+        <motion.div initial={{ opacity: 0, y: 48 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 48 }}
           transition={{ type: "spring", damping: 26, stiffness: 300 }}
-          className="relative z-10 mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-y-auto rounded-3xl shadow-2xl sm:mx-0 sm:max-h-[78vh] sm:flex-row sm:overflow-hidden">
+          className="relative z-10 mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-y-auto rounded-3xl shadow-2xl sm:mx-0 sm:max-h-[78vh] sm:flex-row sm:overflow-hidden max-lg:max-w-none max-lg:rounded-b-none max-lg:rounded-t-[32px] max-lg:max-h-[90dvh] max-lg:pb-[env(safe-area-inset-bottom)] max-lg:before:mx-auto max-lg:before:mb-1 max-lg:before:mt-3 max-lg:before:block max-lg:before:h-1.5 max-lg:before:w-10 max-lg:before:shrink-0 max-lg:before:rounded-full max-lg:before:bg-slate-300 max-lg:before:content-['']">
 
           <button onClick={onClose}
             className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-md transition-colors hover:bg-white dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-800">
