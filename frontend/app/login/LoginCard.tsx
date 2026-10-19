@@ -74,7 +74,7 @@ export function LoginCard() {
           </motion.div>
 
           <div className="relative z-10 mt-6 sm:mt-8">
-            <p className="hidden text-[9.5px] font-semibold uppercase tracking-[0.22em] text-white/45 sm:block">
+            <p className="text-[9.5px] font-semibold uppercase tracking-[0.22em] text-white/45">
               Presensi Kehadiran
             </p>
 
