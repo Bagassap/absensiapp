@@ -4,6 +4,8 @@ import { useState, type FormEvent } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { Eye, EyeOff, Loader2, User, Lock } from "lucide-react";
 import { BrandedLoadingOverlay } from "@/components/shared/BrandedLoadingOverlay";
+import { PwaInstallScreen } from "@/components/shared/PwaInstallScreen";
+import { useCanInstall } from "@/lib/pwaInstall";
 
 const container: Variants = {
   hidden: {},
@@ -26,6 +28,8 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState<string | null>(null);
+  const [afterInstall, setAfterInstall] = useState<(() => void) | null>(null);
+  const canInstall = useCanInstall();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -59,10 +63,17 @@ export function LoginForm() {
       const namaDepan = (data.user?.nama as string | undefined)?.split(" ")[0] ?? "";
       const greeting = namaDepan ? `Selamat datang, ${namaDepan}!` : "Selamat datang!";
       const role = (data.user?.role as string)?.toLowerCase() ?? "guru";
-      setRedirecting(greeting);
-      setTimeout(() => {
-        window.location.replace(role === "admin" ? "/admin/dashboard" : "/guru/absensi-harian");
-      }, 1600);
+      const dest = role === "admin" ? "/admin/dashboard" : "/guru/absensi-harian";
+      const proceed = () => {
+        setRedirecting(greeting);
+        setTimeout(() => window.location.replace(dest), 1600);
+      };
+      if (canInstall) {
+        (document.activeElement as HTMLElement | null)?.blur?.();
+        setAfterInstall(() => proceed);
+        return;
+      }
+      proceed();
     } catch {
       setError("Tidak dapat terhubung ke server. Periksa koneksi Anda.");
       setLoading(false);
@@ -165,7 +176,16 @@ export function LoginForm() {
     </motion.form>
 
     <AnimatePresence>
-      {redirecting && <BrandedLoadingOverlay greeting={redirecting} />}
+      {afterInstall && !redirecting && (
+        <PwaInstallScreen
+          onDone={() => {
+            const next = afterInstall;
+            setAfterInstall(null);
+            next();
+          }}
+        />
+      )}
+      {redirecting &&<BrandedLoadingOverlay greeting={redirecting} />}
     </AnimatePresence>
     </>
   );

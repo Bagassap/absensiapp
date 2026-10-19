@@ -14,6 +14,7 @@ import { timeAgo } from "@/components/dashboard/ActivityList";
 import { Avatar } from "@/components/shared/Avatar";
 import { ProfilSayaModal } from "@/components/shared/ProfilSayaModal";
 import { LiveClock } from "@/components/shared/LiveClock";
+import { PushToggle } from "@/components/shared/PushToggle";
 
 
 const PAGE_TITLES: Record<string, [string, string]> = {
@@ -250,6 +251,8 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
                       </button>
                     )}
                   </div>
+
+                  <PushToggle />
 
                   <div className="max-h-80 overflow-y-auto">
                     {notifLoading ? (

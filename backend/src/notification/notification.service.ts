@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationType } from '../../generated/prisma/client';
+import { PushService } from './push.service';
 
 export interface CreateNotificationInput {
   userId: string;
@@ -12,10 +13,13 @@ export interface CreateNotificationInput {
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly push: PushService,
+  ) {}
 
-  create(input: CreateNotificationInput) {
-    return this.prisma.notification.create({
+  async create(input: CreateNotificationInput) {
+    const created = await this.prisma.notification.create({
       data: {
         userId:  input.userId,
         title:   input.title,
@@ -24,11 +28,17 @@ export class NotificationService {
         link:    input.link,
       },
     });
+    void this.push.sendToUsers([input.userId], {
+      title: input.title,
+      body: input.message,
+      url: input.link ?? '/',
+    });
+    return created;
   }
 
   async createMany(userIds: string[], input: Omit<CreateNotificationInput, 'userId'>) {
     if (userIds.length === 0) return { count: 0 };
-    return this.prisma.notification.createMany({
+    const result = await this.prisma.notification.createMany({
       data: userIds.map((userId) => ({
         userId,
         title:   input.title,
@@ -37,6 +47,12 @@ export class NotificationService {
         link:    input.link,
       })),
     });
+    void this.push.sendToUsers(userIds, {
+      title: input.title,
+      body: input.message,
+      url: input.link ?? '/',
+    });
+    return result;
   }
 
   async findAllForUser(userId: string, page = 1, limit = 10) {
