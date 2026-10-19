@@ -29,10 +29,10 @@ export function LoginCard() {
       initial="hidden"
       animate="visible"
       variants={cardVariants}
-      className="relative z-10 flex h-[100dvh] w-full flex-col overflow-hidden bg-transparent shadow-none sm:h-auto sm:max-w-235 sm:flex-row sm:gap-4 sm:rounded-[36px] sm:bg-white sm:p-5 sm:shadow-[0_0_0_1px_rgba(0,200,83,0.18),0_4px_16px_rgba(0,0,0,0.06),0_20px_56px_rgba(0,0,0,0.12),0_40px_100px_rgba(0,200,83,0.07)]"
+      className="relative z-10 flex h-full w-full flex-col overflow-hidden bg-transparent shadow-none sm:h-auto sm:max-h-none sm:max-w-235 sm:flex-row sm:gap-4 sm:rounded-[36px] sm:bg-white sm:p-5 sm:shadow-[0_0_0_1px_rgba(0,200,83,0.18),0_4px_16px_rgba(0,0,0,0.06),0_20px_56px_rgba(0,0,0,0.12),0_40px_100px_rgba(0,200,83,0.07)]"
     >
       <div
-        className="relative flex flex-1 min-h-0 flex-col items-center justify-center overflow-hidden px-6 py-8 sm:min-h-0 sm:w-[320px] sm:shrink-0 sm:flex-none sm:rounded-3xl sm:px-10 sm:py-12"
+        className="relative flex flex-1 min-h-0 flex-col items-center justify-center overflow-hidden px-6 py-4 sm:min-h-0 sm:w-[320px] sm:shrink-0 sm:flex-none sm:rounded-3xl sm:px-10 sm:py-12"
         style={{ backgroundColor: "#013920" }}
       >
         <div
