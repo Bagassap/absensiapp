@@ -6,7 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { ImpersonationBanner } from "./ImpersonationBanner";
 import { MobileBottomNav } from "./MobileBottomNav";
-import { MobileTitle, isMobileSubPage } from "./MobileTitle";
+import { isMobileSubPage } from "./MobileTitle";
 import type { UserPayload } from "@/lib/auth";
 
 export function DashboardShell({
@@ -46,7 +46,6 @@ export function DashboardShell({
       >
         <ImpersonationBanner impersonatedBy={user.impersonatedBy} nama={user.nama} />
         <Topbar user={user} mobileHidden={subPage} />
-        <MobileTitle user={user} />
         <main className="mx-auto w-full max-w-screen-2xl p-4 pb-28 md:p-6 lg:pb-6 2xl:p-10">{children}</main>
       </div>
 

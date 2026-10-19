@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell, ChevronDown, LogOut,
@@ -77,6 +78,7 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
   const router   = useRouter();
   const pathname = usePathname();
   const { title, subtitle } = getPageInfo(pathname);
+  const isHome = pathname === "/admin/dashboard" || pathname === "/guru/absensi-harian";
 
   const [notifOpen,      setNotifOpen]      = useState(false);
   const [notifications,  setNotifications]  = useState<ApiNotification[]>([]);
@@ -188,7 +190,16 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
 
   return (
     <>
-      <header className={`sticky top-0 z-30 flex items-center gap-3 bg-[#F5F7FB] px-4 pb-1 pt-4 transition-colors duration-200 dark:bg-slate-900 lg:bg-white lg:px-5 lg:py-5 lg:shadow-[0_1px_4px_rgba(0,0,0,0.08)] dark:lg:bg-slate-900 2xl:px-10 ${mobileHidden ? "max-lg:hidden" : ""}`}>
+      <header className={`sticky top-0 z-30 flex items-center gap-3 rounded-b-[28px] bg-[#013920] px-4 py-4 shadow-[0_10px_24px_-10px_rgba(1,57,32,0.6)] transition-colors duration-200 lg:rounded-none lg:bg-white lg:px-5 lg:py-5 lg:shadow-[0_1px_4px_rgba(0,0,0,0.08)] dark:lg:bg-slate-900 2xl:px-10 ${mobileHidden ? "max-lg:hidden" : ""}`}>
+        <div className="flex min-w-0 items-center gap-3 lg:hidden">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: "#012A18" }}>
+            <Image src="/PPLG.png" alt="Absensi Guru" width={18} height={22} className="h-5 w-auto" />
+          </div>
+          <span className="truncate text-base font-bold text-white">
+            {isHome ? `Hi, ${user.nama.split(" ")[0]} 👋` : title}
+          </span>
+        </div>
+
         <div className="hidden xl:block">
           <h1 className="mb-0.5 text-lg font-bold text-slate-800 dark:text-slate-200">{title}</h1>
           {subtitle && (
@@ -202,14 +213,14 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
 
         <div className="contents lg:flex lg:items-center lg:gap-2">
 
-          <div className="relative order-first lg:order-none" ref={notifRef}>
+          <div className="relative" ref={notifRef}>
             <button
               onClick={() => setNotifOpen((v) => !v)}
-              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-[0_4px_16px_rgba(15,23,42,0.08)] transition-colors dark:bg-slate-800 dark:text-slate-200 lg:h-9 lg:w-9 lg:rounded-full lg:bg-slate-100 lg:text-slate-500 lg:shadow-none lg:hover:bg-slate-200 lg:hover:text-slate-700 dark:lg:bg-slate-700/50 dark:lg:text-slate-400 dark:lg:hover:bg-slate-700 dark:lg:hover:text-white"
+              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25 lg:bg-slate-100 lg:text-slate-500 lg:hover:bg-slate-200 lg:hover:text-slate-700 dark:lg:bg-slate-700/50 dark:lg:text-slate-400 dark:lg:hover:bg-slate-700 dark:lg:hover:text-white"
             >
               <Bell size={16} />
               {unreadCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-[#F5F7FB] dark:ring-slate-900 lg:ring-white">
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#F26A3D] text-[8px] font-bold text-white ring-2 ring-[#013920] lg:bg-red-500 lg:ring-white dark:lg:ring-slate-900">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -222,7 +233,7 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.96 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute left-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 overflow-hidden rounded-[10px] lg:left-auto lg:right-0 lg:w-80 border border-gray-200 bg-white shadow-xl shadow-gray-200/60 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30"
+                  className="fixed inset-x-3 top-[4.75rem] z-50 overflow-hidden rounded-3xl border border-transparent bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30 lg:absolute lg:inset-x-auto lg:right-0 lg:top-full lg:mt-2 lg:w-80 lg:rounded-[10px] lg:border-gray-200 lg:shadow-xl lg:shadow-gray-200/60"
                 >
                   <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-slate-700">
                     <div>
@@ -299,7 +310,7 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((v) => !v)}
-              className="relative flex items-center gap-2 rounded-full bg-white p-1 shadow-[0_4px_16px_rgba(15,23,42,0.08)] transition-colors dark:bg-slate-800 lg:rounded-xl lg:bg-slate-100 lg:py-1.5 lg:pl-1.5 lg:pr-3 lg:shadow-none lg:hover:bg-slate-200 dark:lg:bg-slate-700/50 dark:lg:hover:bg-slate-700"
+              className="relative flex items-center gap-2 rounded-full shadow-[0_0_0_2px_#fff] transition-colors lg:rounded-xl lg:bg-slate-100 lg:py-1.5 lg:pl-1.5 lg:pr-3 lg:shadow-none lg:hover:bg-slate-200 dark:lg:bg-slate-700/50 dark:lg:hover:bg-slate-700"
             >
               <Avatar
                 src={user.fotoProfil}
@@ -308,7 +319,6 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
                 fallbackBg="#00C853"
                 textClassName="text-[11px] font-bold"
               />
-              <span className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-white bg-[#00C853] dark:border-slate-800 lg:hidden" />
               <span className="hidden text-sm font-medium text-gray-700 dark:text-slate-200 lg:block">
                 {user.nama.split(" ")[0]}
               </span>
@@ -325,7 +335,7 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 6, scale: 0.97 }}
                   transition={{ duration: 0.13 }}
-                  className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-[10px] border border-gray-200 bg-white py-2 shadow-xl shadow-gray-200/60 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30"
+                  className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-3xl border border-transparent lg:rounded-[10px] lg:border-gray-200 bg-white py-2 shadow-xl shadow-gray-200/60 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30"
                 >
                   <div className="mb-1 border-b border-gray-200 px-4 pb-3 pt-1 dark:border-slate-700">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{user.nama}</p>
