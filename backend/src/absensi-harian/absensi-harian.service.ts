@@ -26,7 +26,7 @@ const isPiketKegiatan = (nama: string) => PIKET_ALIASES.includes(nama.trim().toL
 const isDhuhaKegiatan = (nama: string) => nama.toLowerCase().includes('dhuha');
 
 const DHUHA_ANCHOR_KEY = 'dhuha_anchor';
-const DHUHA_DEFAULT_ANCHOR = '2026-10-19';
+const DHUHA_DEFAULT_ANCHOR = '2026-11-02';
 const DHUHA_CYCLE_WEEKS = 4;
 
 const HARI_BERJADWAL_PIKET = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT'];
@@ -261,11 +261,14 @@ export class AbsensiHarianService {
     const hariBerjadwal = tanggalList.filter((t) => HARI_BERJADWAL_PIKET.includes(hariFor(t)));
     if (hariBerjadwal.length === 0) return result;
     const anchor = await this.getDhuhaAnchor();
-    const slots = hariBerjadwal.map((tanggal) => ({
-      tanggal,
-      minggu: weekCycleIndex(anchor, tanggal, DHUHA_CYCLE_WEEKS) + 1,
-      hari: hariFor(tanggal),
-    }));
+    const slots = hariBerjadwal
+      .filter((tanggal) => tanggal >= mondayOf(anchor))
+      .map((tanggal) => ({
+        tanggal,
+        minggu: weekCycleIndex(anchor, tanggal, DHUHA_CYCLE_WEEKS) + 1,
+        hari: hariFor(tanggal),
+      }));
+    if (slots.length === 0) return result;
     const rows = await this.prisma.jadwalDhuha.findMany({
       where: { OR: slots.map((x) => ({ minggu: x.minggu, hari: x.hari })) },
       orderBy: { createdAt: 'asc' },
@@ -285,25 +288,72 @@ export class AbsensiHarianService {
 
   async getDhuhaInfo(tanggal: string) {
     const anchor = await this.getDhuhaAnchor();
-    const minggu = weekCycleIndex(anchor, tanggal, DHUHA_CYCLE_WEEKS) + 1;
+    const mingguSekarang = tanggal >= mondayOf(anchor) ? weekCycleIndex(anchor, tanggal, DHUHA_CYCLE_WEEKS) + 1 : null;
     const rows = await this.prisma.jadwalDhuha.findMany({
-      where: { minggu },
       include: { guru: { include: { user: { select: { nama: true } } } } },
       orderBy: { createdAt: 'asc' },
     });
     return {
       anchor,
       tanggal,
-      minggu,
+      mingguSekarang,
       jadwal: rows
-        .map((r) => ({ hari: r.hari, guruId: r.guruId, guruNama: r.guru.user?.nama ?? null, kelas: r.kelas, mapel: r.mapel }))
-        .sort((a, b) => HARI_BERJADWAL_PIKET.indexOf(a.hari) - HARI_BERJADWAL_PIKET.indexOf(b.hari)),
+        .map((r) => ({
+          id: r.id,
+          minggu: r.minggu,
+          hari: r.hari,
+          guruId: r.guruId,
+          guruNama: r.guru.user?.nama ?? null,
+          kelas: r.kelas,
+          mapel: r.mapel,
+        }))
+        .sort((a, b) => a.minggu - b.minggu || HARI_BERJADWAL_PIKET.indexOf(a.hari) - HARI_BERJADWAL_PIKET.indexOf(b.hari)),
     };
+  }
+
+  private validateDhuhaSlot(minggu: number, hari: string) {
+    if (!Number.isInteger(minggu) || minggu < 1 || minggu > DHUHA_CYCLE_WEEKS) {
+      throw new BadRequestException(`Minggu harus 1-${DHUHA_CYCLE_WEEKS}`);
+    }
+    if (!HARI_BERJADWAL_PIKET.includes(hari)) throw new BadRequestException('Hari harus Senin-Jumat');
+  }
+
+  async createJadwalDhuha(dto: { minggu: number; hari: string; guruId: string; kelas: string; mapel: string }) {
+    this.validateDhuhaSlot(dto.minggu, dto.hari);
+    await this.assertGuruExists(dto.guruId);
+    return this.prisma.jadwalDhuha.create({
+      data: { minggu: dto.minggu, hari: dto.hari, guruId: dto.guruId, kelas: dto.kelas.trim(), mapel: dto.mapel.trim() },
+    });
+  }
+
+  async updateJadwalDhuha(id: string, dto: { minggu?: number; hari?: string; guruId?: string; kelas?: string; mapel?: string }) {
+    const existing = await this.prisma.jadwalDhuha.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Jadwal dhuha tidak ditemukan');
+    this.validateDhuhaSlot(dto.minggu ?? existing.minggu, dto.hari ?? existing.hari);
+    if (dto.guruId) await this.assertGuruExists(dto.guruId);
+    return this.prisma.jadwalDhuha.update({
+      where: { id },
+      data: {
+        minggu: dto.minggu,
+        hari: dto.hari,
+        guruId: dto.guruId,
+        kelas: dto.kelas?.trim(),
+        mapel: dto.mapel?.trim(),
+      },
+    });
+  }
+
+  async deleteJadwalDhuha(id: string) {
+    const existing = await this.prisma.jadwalDhuha.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Jadwal dhuha tidak ditemukan');
+    await this.prisma.jadwalDhuha.delete({ where: { id } });
+    return { message: 'Jadwal dhuha dihapus' };
   }
 
   async setDhuhaAnchor(tanggal: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) throw new BadRequestException('Format tanggal harus YYYY-MM-DD');
     const anchor = mondayOf(tanggal);
+    if (anchor !== tanggal) throw new BadRequestException('Tanggal mulai Minggu 1 harus hari Senin');
     await this.prisma.pengaturan.upsert({
       where: { key: DHUHA_ANCHOR_KEY },
       create: { key: DHUHA_ANCHOR_KEY, value: anchor },

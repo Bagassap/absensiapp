@@ -481,6 +481,7 @@ export default function AdminAbsensiHarianPage() {
             <p className="px-1 pt-4 pb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">Menu Lainnya</p>
             <MenuRow icon={PieChart} label="Statistik Absensi" desc="Grafik & ringkasan kehadiran" onClick={() => setMenuModal("statistik")} />
             <MenuRow icon={Settings} label="Kelola Kegiatan" desc="Tambah, edit, & kegiatan berulang" href="/admin/absensi-harian/kegiatan" />
+            <MenuRow icon={CalendarDays} label="Jadwal Dhuha" desc="Atur guru terjadwal shalat dhuha" href="/admin/absensi-harian/dhuha" />
             <MenuRow icon={FileText} label="Unduh Laporan" desc="Ekspor rekap absensi PDF/Excel" onClick={() => setMenuModal("laporan")} />
             <MenuRow icon={TrendingDown} label="Kehadiran Rendah" desc="Guru yang jarang absen kegiatan" onClick={() => setMenuModal("kehadiran-rendah")} last />
           </div>

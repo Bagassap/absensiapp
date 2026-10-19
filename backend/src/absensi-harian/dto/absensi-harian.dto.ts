@@ -137,3 +137,54 @@ export class UpdateKegiatanRecurringDto {
   @IsOptional()
   keterangan?: string;
 }
+
+const HARI_KERJA_VALUES = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT'];
+
+export class CreateJadwalDhuhaDto {
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  minggu!: number;
+
+  @IsIn(HARI_KERJA_VALUES)
+  hari!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  guruId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  kelas!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  mapel!: string;
+}
+
+export class UpdateJadwalDhuhaDto {
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  @IsOptional()
+  minggu?: number;
+
+  @IsIn(HARI_KERJA_VALUES)
+  @IsOptional()
+  hari?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  guruId?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  kelas?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  mapel?: string;
+}

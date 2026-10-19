@@ -12,7 +12,7 @@ import { AbsensiHarianPdfService } from './absensi-harian-pdf.service';
 import { AbsensiHarianExcelService } from './absensi-harian-excel.service';
 import {
   CreateKegiatanDto, UpdateKegiatanDto, AbsenKegiatanDto, KirimPengingatDto, VerifikasiAbsensiDto,
-  CreateKegiatanRecurringDto, UpdateKegiatanRecurringDto,
+  CreateKegiatanRecurringDto, UpdateKegiatanRecurringDto, CreateJadwalDhuhaDto, UpdateJadwalDhuhaDto,
 } from './dto/absensi-harian.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -115,6 +115,27 @@ export class AbsensiHarianController {
   @Get('dhuha')
   getDhuhaInfo(@Query('tanggal') tanggal: string) {
     return this.service.getDhuhaInfo(tanggal || todayStr());
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post('dhuha/jadwal')
+  createJadwalDhuha(@Body() dto: CreateJadwalDhuhaDto) {
+    return this.service.createJadwalDhuha(dto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch('dhuha/jadwal/:id')
+  updateJadwalDhuha(@Param('id') id: string, @Body() dto: UpdateJadwalDhuhaDto) {
+    return this.service.updateJadwalDhuha(id, dto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Delete('dhuha/jadwal/:id')
+  deleteJadwalDhuha(@Param('id') id: string) {
+    return this.service.deleteJadwalDhuha(id);
   }
 
   @UseGuards(RolesGuard)
