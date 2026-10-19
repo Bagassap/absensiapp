@@ -155,16 +155,16 @@ export default function JadwalDhuhaPage() {
   }
 
   return (
-    <div className="relative isolate -m-4" style={{ background: "#013920" }}>
+    <div className="relative isolate -m-4">
       <div className="relative flex items-center px-4 pb-3 pt-4">
         <button type="button" onClick={() => router.push("/admin/absensi-harian")}
-          className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white active:bg-white/25">
+          className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm active:bg-slate-100">
           <ChevronLeft size={18} />
         </button>
-        <h1 className="absolute inset-x-0 text-center text-base font-bold text-white">Jadwal Shalat Dhuha</h1>
+        <h1 className="absolute inset-x-0 text-center text-base font-bold text-slate-800 dark:text-white">Jadwal Shalat Dhuha</h1>
       </div>
 
-      <div className="space-y-4 rounded-t-[28px] bg-[#F1F5F8] p-4 pb-8 dark:bg-slate-900">
+      <div className="space-y-4 bg-transparent p-4 pb-8 dark:bg-slate-900">
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="animate-spin text-slate-400" /></div>
         ) : (

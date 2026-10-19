@@ -507,11 +507,8 @@ export function AbsensiSayaWizard() {
         </div>
       )}
 
-      <div className="relative isolate -m-4 lg:hidden" style={{ background: "#013920" }}>
-        <div className="relative flex items-center justify-center px-4 pb-3 pt-4">
-          <h1 className="text-base font-bold text-white">Absensi Kegiatan</h1>
-        </div>
-        <div className="space-y-4 rounded-t-[28px] bg-[#F1F5F8] p-4 dark:bg-slate-900">
+      <div className="relative isolate -m-4 lg:hidden">
+        <div className="space-y-4 bg-transparent p-4 dark:bg-slate-900">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 size={24} className="animate-spin text-[#00C853]" />

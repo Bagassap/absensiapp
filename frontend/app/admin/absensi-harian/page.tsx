@@ -439,11 +439,8 @@ export default function AdminAbsensiHarianPage() {
         </div>
       </div>
 
-      <div className="relative isolate -m-4 lg:hidden" style={{ background: "#013920" }}>
-        <div className="relative flex items-center justify-center px-4 pb-3 pt-4">
-          <h1 className="text-base font-bold text-white">Absensi Kegiatan</h1>
-        </div>
-        <div className="space-y-4 rounded-t-[28px] bg-[#F1F5F8] p-4 dark:bg-slate-900">
+      <div className="relative isolate -m-4 lg:hidden">
+        <div className="space-y-4 bg-transparent p-4 dark:bg-slate-900">
 
           <div className="relative overflow-hidden rounded-[28px] px-5 py-7 text-center shadow-[0_18px_36px_-14px_rgba(0,0,0,0.45)]" style={{ background: "#013920" }}>
             <div className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl" style={{ background: "#00C85333" }} />

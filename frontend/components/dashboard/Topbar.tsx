@@ -3,9 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import {
-  Menu, Bell, ChevronDown, LogOut,
+  Bell, ChevronDown, LogOut,
   UserCircle, CheckCircle2, Info, AlertTriangle,
   CheckCheck, Clock,
 } from "lucide-react";
@@ -74,7 +73,7 @@ const ROLE_LABEL: Record<string, string> = { ADMIN: "Administrator", GURU: "Guru
 const BRAND_ACCENT = "#00C853";
 
 
-export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: () => void }) {
+export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobileHidden?: boolean }) {
   const router   = useRouter();
   const pathname = usePathname();
   const { title, subtitle } = getPageInfo(pathname);
@@ -131,6 +130,17 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
     if (notifOpen) fetchNotifications();
   }, [notifOpen]);
 
+  useEffect(() => {
+    const openNotif = () => setNotifOpen(true);
+    const openProfil = () => setProfilOpen(true);
+    window.addEventListener("app:open-notif", openNotif);
+    window.addEventListener("app:open-profil", openProfil);
+    return () => {
+      window.removeEventListener("app:open-notif", openNotif);
+      window.removeEventListener("app:open-profil", openProfil);
+    };
+  }, []);
+
   async function markAllRead() {
     setNotifications((p) => p.map((n) => ({ ...n, isRead: true })));
     setUnreadCount(0);
@@ -178,27 +188,7 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex items-center gap-3 bg-[#013920] px-4 py-5 shadow-[0_1px_4px_rgba(0,0,0,0.08)] transition-colors duration-200 lg:bg-white dark:lg:bg-slate-900 md:px-5 2xl:px-10">
-        <button
-          onClick={onMenuClick}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white transition-colors hover:bg-white/25 lg:hidden"
-        >
-          <Menu size={20} />
-        </button>
-
-        <div className="flex items-center gap-2 lg:hidden">
-          <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md shadow-black/20 ring-1 ring-white/10"
-            style={{ background: "#FFF7E4" }}
-          >
-            <Image src="/PPLG.png" alt="Absensi" width={16} height={16} className="h-3.5 w-auto" />
-          </div>
-          <span className="flex items-baseline gap-1">
-            <span className="text-[15px] font-black tracking-tight text-white">Absensi</span>
-            <span className="text-[9px] font-bold tracking-[0.15em] text-white/50">{user.role}</span>
-          </span>
-        </div>
-
+      <header className={`sticky top-0 z-30 flex items-center gap-3 bg-[#F5F7FB] px-4 pb-1 pt-4 transition-colors duration-200 dark:bg-slate-900 lg:bg-white lg:px-5 lg:py-5 lg:shadow-[0_1px_4px_rgba(0,0,0,0.08)] dark:lg:bg-slate-900 2xl:px-10 ${mobileHidden ? "max-lg:hidden" : ""}`}>
         <div className="hidden xl:block">
           <h1 className="mb-0.5 text-lg font-bold text-slate-800 dark:text-slate-200">{title}</h1>
           {subtitle && (
@@ -208,18 +198,18 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
 
         <div className="flex-1" />
 
-        <LiveClock variant="topbar" />
+        <div className="hidden lg:block"><LiveClock variant="topbar" /></div>
 
-        <div className="flex items-center gap-2">
+        <div className="contents lg:flex lg:items-center lg:gap-2">
 
-          <div className="relative" ref={notifRef}>
+          <div className="relative order-first lg:order-none" ref={notifRef}>
             <button
               onClick={() => setNotifOpen((v) => !v)}
-              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25 lg:bg-slate-100 lg:text-slate-500 lg:hover:bg-slate-200 lg:hover:text-slate-700 dark:lg:bg-slate-700/50 dark:lg:text-slate-400 dark:lg:hover:bg-slate-700 dark:lg:hover:text-white"
+              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-[0_4px_16px_rgba(15,23,42,0.08)] transition-colors dark:bg-slate-800 dark:text-slate-200 lg:h-9 lg:w-9 lg:rounded-full lg:bg-slate-100 lg:text-slate-500 lg:shadow-none lg:hover:bg-slate-200 lg:hover:text-slate-700 dark:lg:bg-slate-700/50 dark:lg:text-slate-400 dark:lg:hover:bg-slate-700 dark:lg:hover:text-white"
             >
               <Bell size={16} />
               {unreadCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-[#013920] lg:ring-white dark:lg:ring-slate-900">
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-[#F5F7FB] dark:ring-slate-900 lg:ring-white">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -232,7 +222,7 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.96 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-[10px] border border-gray-200 bg-white shadow-xl shadow-gray-200/60 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30"
+                  className="absolute left-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 overflow-hidden rounded-[10px] lg:left-auto lg:right-0 lg:w-80 border border-gray-200 bg-white shadow-xl shadow-gray-200/60 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30"
                 >
                   <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-slate-700">
                     <div>
@@ -309,21 +299,22 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-xl bg-white/15 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-white/25 lg:bg-slate-100 lg:hover:bg-slate-200 dark:lg:bg-slate-700/50 dark:lg:hover:bg-slate-700"
+              className="relative flex items-center gap-2 rounded-full bg-white p-1 shadow-[0_4px_16px_rgba(15,23,42,0.08)] transition-colors dark:bg-slate-800 lg:rounded-xl lg:bg-slate-100 lg:py-1.5 lg:pl-1.5 lg:pr-3 lg:shadow-none lg:hover:bg-slate-200 dark:lg:bg-slate-700/50 dark:lg:hover:bg-slate-700"
             >
               <Avatar
                 src={user.fotoProfil}
                 nama={user.nama}
-                sizePx={28}
+                sizePx={36}
                 fallbackBg="#00C853"
                 textClassName="text-[11px] font-bold"
               />
-              <span className="hidden text-sm font-medium text-white sm:block lg:text-gray-700 dark:lg:text-slate-200">
+              <span className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-white bg-[#00C853] dark:border-slate-800 lg:hidden" />
+              <span className="hidden text-sm font-medium text-gray-700 dark:text-slate-200 lg:block">
                 {user.nama.split(" ")[0]}
               </span>
               <ChevronDown
                 size={13}
-                className={`shrink-0 text-white/60 transition-transform duration-200 lg:text-gray-400 dark:lg:text-slate-400 ${dropdownOpen ? "rotate-180" : ""}`}
+                className={`hidden shrink-0 text-gray-400 transition-transform duration-200 dark:text-slate-400 lg:block ${dropdownOpen ? "rotate-180" : ""}`}
               />
             </button>
 

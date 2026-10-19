@@ -217,7 +217,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-5">
 
-      <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <motion.div className="hidden lg:block" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <GreetingHero nama={user.nama} role={user.role} />
       </motion.div>
 

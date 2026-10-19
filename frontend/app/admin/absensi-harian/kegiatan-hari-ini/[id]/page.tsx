@@ -107,19 +107,19 @@ export default function KegiatanHariIniDetailPage() {
   }
 
   return (
-    <div className="relative isolate -m-4" style={{ background: "#013920" }}>
+    <div className="relative isolate -m-4">
       <div className="relative flex items-center px-4 pb-3 pt-4">
         <button type="button" onClick={() => router.push("/admin/absensi-harian")}
-          className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white active:bg-white/25">
+          className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm active:bg-slate-100">
           <ChevronLeft size={18} />
         </button>
         <div className="absolute inset-x-14 text-center">
-          <h1 className="truncate text-base font-bold text-white">{kegiatan?.nama ?? "Kegiatan"}</h1>
-          {kegiatan && <p className="text-[11px] font-semibold text-white/60">{kegiatan.jamLabel} · {formatTgl(tanggal)}</p>}
+          <h1 className="truncate text-base font-bold text-slate-800 dark:text-white">{kegiatan?.nama ?? "Kegiatan"}</h1>
+          {kegiatan && <p className="text-[11px] font-semibold text-slate-500">{kegiatan.jamLabel} · {formatTgl(tanggal)}</p>}
         </div>
       </div>
 
-      <div className="space-y-4 rounded-t-[28px] bg-[#F1F5F8] p-4 pb-8 dark:bg-slate-900">
+      <div className="space-y-4 bg-transparent p-4 pb-8 dark:bg-slate-900">
         {loading ? (
           <div className="space-y-3 rounded-3xl bg-white p-5 dark:bg-slate-800">
             {Array.from({ length: 4 }).map((_, i) => (

@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { ImpersonationBanner } from "./ImpersonationBanner";
+import { MobileBottomNav } from "./MobileBottomNav";
+import { MobileTitle, isMobileSubPage } from "./MobileTitle";
 import type { UserPayload } from "@/lib/auth";
 
 export function DashboardShell({
@@ -13,8 +16,9 @@ export function DashboardShell({
   user: UserPayload;
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const pathname = usePathname();
+  const subPage = isMobileSubPage(pathname);
 
   useEffect(() => {
     if (!sessionStorage.getItem("lms_session")) {
@@ -28,29 +32,25 @@ export function DashboardShell({
     <div className="flex min-h-screen">
       <Sidebar
         user={user}
-        open={sidebarOpen}
+        open={false}
         collapsed={sidebarCollapsed}
-        onClose={() => setSidebarOpen(false)}
+        onClose={() => {}}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
       />
 
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
       <div
         className={[
-          "flex min-w-0 flex-1 flex-col bg-surface transition-[padding] duration-300 ease-in-out dark:bg-slate-900",
+          "flex min-w-0 flex-1 flex-col bg-[#F5F7FB] transition-[padding] duration-300 ease-in-out dark:bg-slate-900 lg:bg-surface",
           sidebarCollapsed ? "lg:pl-18" : "lg:pl-64",
         ].join(" ")}
       >
         <ImpersonationBanner impersonatedBy={user.impersonatedBy} nama={user.nama} />
-        <Topbar user={user} onMenuClick={() => setSidebarOpen(true)} />
-        <main className="mx-auto w-full max-w-screen-2xl p-4 md:p-6 2xl:p-10">{children}</main>
+        <Topbar user={user} mobileHidden={subPage} />
+        <MobileTitle user={user} />
+        <main className="mx-auto w-full max-w-screen-2xl p-4 pb-28 md:p-6 lg:pb-6 2xl:p-10">{children}</main>
       </div>
+
+      <MobileBottomNav user={user} />
     </div>
   );
 }

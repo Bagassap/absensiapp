@@ -73,7 +73,7 @@ export default function AdminDataGuruPage() {
 
   return (
     <div className="space-y-5">
-      <div className="relative overflow-hidden rounded-2xl p-6" style={{ background: "#013920" }}>
+      <div className="relative hidden overflow-hidden rounded-2xl p-6 lg:block" style={{ background: "#013920" }}>
         <div className="pointer-events-none absolute -right-10 -top-10 h-60 w-60 rounded-full bg-white/10" />
         <div className="pointer-events-none absolute -bottom-14 right-28 h-52 w-52 rounded-full bg-white/6" />
         <div className="relative flex items-center gap-3 sm:gap-4">
