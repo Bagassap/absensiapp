@@ -1,4 +1,7 @@
+import type { Viewport } from "next";
 import { LoginCard } from "./LoginCard";
+
+export const viewport: Viewport = { themeColor: "#013920" };
 
 export default function LoginPage() {
   return (

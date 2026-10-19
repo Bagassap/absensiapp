@@ -16,6 +16,8 @@ import { Avatar } from "@/components/shared/Avatar";
 import { StatusBadge } from "@/components/absensi-harian/StatusBadge";
 import { avatarColor } from "@/components/absensi-harian/shared";
 import { PageSizeToggle, paginate } from "@/components/shared/PageSizeToggle";
+import { KEGIATAN_WINDOW_CFG, todayJakarta } from "@/components/absensi-harian/shared";
+import type { RekapKegiatanHarian } from "@/components/absensi-harian/types";
 
 const MODAL_PAGE_SIZE_OPTIONS = [10, 20, Infinity] as const;
 
@@ -170,13 +172,22 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [modalKind, setModalKind] = useState<ModalKind>(null);
+  const [kegiatanRekap, setKegiatanRekap] = useState<RekapKegiatanHarian["kegiatan"]>([]);
 
   async function load() {
     setLoading(true); setError(null);
     try {
-      const [meRes, dashRes] = await Promise.all([fetch("/api/auth/me"), fetch("/api/dashboard/admin")]);
+      const [meRes, dashRes, rekapRes] = await Promise.all([
+        fetch("/api/auth/me"),
+        fetch("/api/dashboard/admin"),
+        fetch(`/api/absensi-harian?tanggal=${todayJakarta()}`, { cache: "no-store" }),
+      ]);
       if (!meRes.ok || !dashRes.ok) throw new Error("Gagal memuat data");
       const [me, dash] = await Promise.all([meRes.json(), dashRes.json()]);
+      if (rekapRes.ok) {
+        const rekap: RekapKegiatanHarian = await rekapRes.json();
+        setKegiatanRekap(rekap.kegiatan ?? []);
+      }
       setUser({ nama: me.nama ?? "", role: me.role ?? "ADMIN", id: me.id ?? "" });
       setData(dash);
     } catch (e: unknown) {
@@ -225,35 +236,44 @@ export default function AdminDashboardPage() {
       <div className="lg:hidden">
         <GradientStatScroller
           items={[
-            { key: "total", label: "Total Guru", value: data.totalGuru, tone: "indigo", icon: Users, caption: `${kegiatanHariIni} kegiatan hari ini`, onClick: () => setModalKind("total") },
-            { key: "persen", label: "Absen Hari Ini", value: persen, suffix: "%", tone: "orange", icon: Calendar, caption: `${guruSudahAbsen} sudah · ${guruBelumAbsen} belum`, onClick: () => setModalKind("persen") },
-            { key: "sudah", label: "Sudah Absen", value: guruSudahAbsen, tone: "green", icon: Activity, caption: `dari ${data.totalGuru} guru`, onClick: () => setModalKind("sudah") },
-            { key: "belum", label: "Belum Absen", value: guruBelumAbsen, tone: "rose", icon: UserX, caption: `${100 - persen}% dari total`, onClick: () => setModalKind("belum") },
+            { key: "total", label: "Total Guru", value: data.totalGuru, tone: "indigo", caption: `${kegiatanHariIni} kegiatan hari ini`, onClick: () => setModalKind("total") },
+            { key: "persen", label: "Absen Hari Ini", value: persen, suffix: "%", tone: "orange", caption: `${guruSudahAbsen} sudah · ${guruBelumAbsen} belum`, onClick: () => setModalKind("persen") },
+            { key: "sudah", label: "Sudah Absen", value: guruSudahAbsen, tone: "green", caption: `dari ${data.totalGuru} guru`, onClick: () => setModalKind("sudah") },
+            { key: "belum", label: "Belum Absen", value: guruBelumAbsen, tone: "rose", caption: `${100 - persen}% dari total`, onClick: () => setModalKind("belum") },
           ]}
         />
 
-        <SectionHeading title="Status Kehadiran" action="Lihat semua" href="/admin/absensi-harian" />
-        {data.statusGuru.length === 0 ? (
-          <p className="rounded-3xl border border-slate-100 bg-white py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800">Belum ada guru terdaftar</p>
+        <SectionHeading title="Kegiatan Hari Ini" action="Lihat semua" href="/admin/absensi-harian" />
+        {kegiatanRekap.length === 0 ? (
+          <p className="rounded-3xl border border-slate-100 bg-white py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800">Belum ada kegiatan hari ini</p>
         ) : (
           <ul className="space-y-3">
-            {data.statusGuru.slice(0, 6).map((g) => (
-              <li key={g.guruId} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-[0_6px_18px_-12px_rgba(15,23,42,0.18)] dark:border-slate-700 dark:bg-slate-800">
-                <div className="flex items-center gap-3">
-                  <Avatar src={g.fotoProfil} nama={g.nama} sizePx={44} fallbackBg={avatarColor(g.nama)} textClassName="text-xs font-extrabold" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{g.nama}</p>
-                    <p className="truncate text-xs text-slate-400">{g.nip ?? "—"}</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-rose-50 px-3.5 py-1.5 text-[11px] font-semibold text-rose-400 dark:bg-rose-500/10">
-                    {g.kegiatanDiabsen} dari {g.totalKegiatanHariIni} kegiatan
-                  </span>
-                  <StatusBadge sudahAbsen={g.sudahAbsen} />
-                </div>
-              </li>
-            ))}
+            {kegiatanRekap.map((k) => {
+              const cfg = KEGIATAN_WINDOW_CFG[k.window];
+              const pct = k.guruTotal > 0 ? Math.round((k.jumlahAbsen / k.guruTotal) * 100) : 0;
+              return (
+                <li key={k.id}>
+                  <Link href={`/admin/absensi-harian/kegiatan-hari-ini/${k.id}`} className="block rounded-3xl border border-slate-100 bg-white p-4 shadow-[0_6px_18px_-12px_rgba(15,23,42,0.18)] dark:border-slate-700 dark:bg-slate-800">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{k.nama}</p>
+                        <p className="mt-0.5 text-xs text-slate-400">{k.jamLabel}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full px-3 py-1 text-[11px] font-bold" style={{ background: cfg.bg, color: cfg.clr }}>{cfg.label}</span>
+                    </div>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: P }} />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-rose-50 px-3.5 py-1.5 text-[11px] font-semibold text-rose-400 dark:bg-rose-500/10">
+                        {k.jumlahAbsen} dari {k.guruTotal} guru sudah absen
+                      </span>
+                      <span className="rounded-full bg-emerald-50 px-3.5 py-1.5 text-[11px] font-semibold text-emerald-500 dark:bg-emerald-500/10">{pct}%</span>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -285,7 +305,7 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-12 gap-4 md:gap-5">
+      <div className="hidden grid-cols-12 gap-4 md:gap-5 lg:grid">
 
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}

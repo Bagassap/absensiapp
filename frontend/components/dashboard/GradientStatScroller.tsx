@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import type { LucideIcon } from "lucide-react";
 
 export type GradientTone = "indigo" | "orange" | "amber" | "green" | "rose";
 
@@ -21,16 +20,14 @@ export type GradientStat = {
   suffix?: string;
   caption?: string;
   tone: GradientTone;
-  icon: LucideIcon;
   onClick?: () => void;
 };
 
 export function GradientStatScroller({ items }: { items: GradientStat[] }) {
   return (
-    <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-6 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-6 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {items.map((it, i) => {
         const [from, to] = GRADIENTS[it.tone];
-        const Icon = it.icon;
         return (
           <motion.div
             key={it.key}
@@ -40,7 +37,7 @@ export function GradientStatScroller({ items }: { items: GradientStat[] }) {
             whileTap={it.onClick ? { scale: 0.97 } : undefined}
             onClick={it.onClick}
             role={it.onClick ? "button" : undefined}
-            className="relative h-44 w-[9.25rem] shrink-0 snap-start overflow-hidden rounded-[28px] p-4 text-white"
+            className="relative h-36 w-[8.5rem] shrink-0 snap-start overflow-hidden rounded-[28px] p-4 text-white"
             style={{
               background: `linear-gradient(150deg, ${from}, ${to})`,
               boxShadow: `0 16px 28px -12px ${to}b3`,
@@ -55,8 +52,6 @@ export function GradientStatScroller({ items }: { items: GradientStat[] }) {
               {it.suffix && <span className="text-2xl">{it.suffix}</span>}
             </p>
             {it.caption && <p className="mt-1.5 text-[11px] font-medium text-white/80">{it.caption}</p>}
-            <Icon size={78} strokeWidth={1.6} className="pointer-events-none absolute -bottom-3 -right-3 -rotate-12 text-white/30" />
-            <Icon size={42} strokeWidth={2.2} className="pointer-events-none absolute bottom-3 right-4 -rotate-12 text-white/70 drop-shadow-lg" />
           </motion.div>
         );
       })}

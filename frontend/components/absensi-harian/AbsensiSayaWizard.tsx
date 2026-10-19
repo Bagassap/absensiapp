@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ClipboardCheck, MapPin, Camera, CheckCircle2, Loader2, Clock,
   FileSignature, ArrowRight, ChevronLeft, ChevronRight, CalendarX2, UserCheck, FileText,
-  Check, StickyNote, X, ExternalLink, Play, Lock, Target,
+  Check, StickyNote, X, ExternalLink, Play, Lock,
 } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
 import { SignaturePad } from "@/components/absensi-harian/SignaturePad";
@@ -526,9 +526,9 @@ export function AbsensiSayaWizard() {
             <>
               <GradientStatScroller
                 items={[
-                  { key: "progres", label: "Progres", value: kegiatanList.length > 0 ? Math.round((sudahList.length / kegiatanList.length) * 100) : 0, suffix: "%", tone: "indigo", icon: Target, caption: `${sudahList.length} dari ${kegiatanList.length} kegiatan` },
-                  { key: "sudah", label: "Sudah Absen", value: sudahList.length, tone: "green", icon: Check, caption: "kegiatan diikuti", onClick: () => setAbsensiTab("SUDAH") },
-                  { key: "belum", label: "Belum Absen", value: belumList.length, tone: "orange", icon: Clock, caption: "kegiatan tersisa", onClick: () => setAbsensiTab("BELUM") },
+                  { key: "progres", label: "Progres", value: kegiatanList.length > 0 ? Math.round((sudahList.length / kegiatanList.length) * 100) : 0, suffix: "%", tone: "indigo", caption: `${sudahList.length} dari ${kegiatanList.length} kegiatan` },
+                  { key: "sudah", label: "Sudah Absen", value: sudahList.length, tone: "green", caption: "kegiatan diikuti", onClick: () => setAbsensiTab("SUDAH") },
+                  { key: "belum", label: "Belum Absen", value: belumList.length, tone: "orange", caption: "kegiatan tersisa", onClick: () => setAbsensiTab("BELUM") },
                 ]}
               />
 
