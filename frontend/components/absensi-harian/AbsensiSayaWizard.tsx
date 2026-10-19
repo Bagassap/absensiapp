@@ -865,68 +865,87 @@ function MobileDetailSheet({ onClose, k }: { onClose: () => void; k: KegiatanUnt
   return createPortal(
     <div className="fixed inset-0 z-100 flex items-end justify-center">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose} />
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 28, stiffness: 300 }}
-        className="relative z-10 w-full overflow-hidden rounded-t-3xl" style={{ background: accent }}>
-        <button type="button" onClick={onClose}
-          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm">
-          <X size={15} />
-        </button>
-        <div className="overflow-y-auto" style={{ maxHeight: "92vh" }}>
-          <div className="relative px-6 py-8 text-center">
-            <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
-            <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-white/8" />
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", damping: 10, delay: 0.1 }}
-              className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/25 shadow-lg">
-              <CheckCircle2 size={30} className="text-white" />
-            </motion.div>
-            <h2 className="mt-4 text-lg font-extrabold text-white">{k.nama}</h2>
-            <p className="mt-1 text-sm text-white/80">Anda tercatat <b>{isIzin ? "Izin" : "Hadir"}</b> untuk kegiatan ini</p>
-            <div className="mx-auto mt-5 flex max-w-xs items-center justify-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
-              <Clock size={14} className="text-white/70" />
-              <span className="font-mono text-xl font-extrabold text-white">{k.waktuAbsen ?? "—"}</span>
-            </div>
+        transition={{ type: "spring", damping: 30, stiffness: 320 }}
+        className="relative z-10 flex w-full max-w-md flex-col overflow-hidden rounded-t-[32px] bg-[#F5F7FB] shadow-[0_-12px_40px_rgba(15,23,42,0.18)] dark:bg-slate-900"
+        style={{ maxHeight: "90dvh" }}>
+        <div className="flex justify-center pt-3">
+          <span className="h-1.5 w-10 rounded-full bg-slate-300 dark:bg-slate-600" />
+        </div>
 
-            <div className="relative mx-auto mt-6 grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex items-start justify-between gap-3 px-5 pb-3 pt-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Riwayat Absen</p>
+            <h2 className="mt-0.5 truncate text-xl font-bold tracking-tight text-slate-900 dark:text-white">{k.nama}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Tutup"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-white p-4 dark:bg-slate-800">
+              <p className="text-[11px] font-semibold text-slate-400">Status</p>
+              <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style={{ background: `${accent}1F`, color: accent }}>
+                <CheckCircle2 size={13} /> {isIzin ? "Izin" : "Hadir"}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 dark:bg-slate-800">
+              <p className="text-[11px] font-semibold text-slate-400">Waktu Absen</p>
+              <p className="mt-1.5 flex items-center gap-1.5 text-lg font-bold tabular-nums text-slate-800 dark:text-white">
+                <Clock size={15} className="text-slate-400" /> {k.waktuAbsen ?? "—"}
+              </p>
+            </div>
+          </div>
+
+          {(fotoSrc || ttdSrc) && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
               {fotoSrc && (
-                <div className="flex flex-col items-center gap-1.5 rounded-xl bg-white/10 p-3 backdrop-blur-sm">
-                  <img src={fotoSrc} alt="Foto Selfie" className="h-24 w-24 rounded-xl border-2 border-white/30 object-cover shadow-md" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-white/60">Foto Selfie</span>
+                <div className="rounded-2xl bg-white p-3 dark:bg-slate-800">
+                  <img src={fotoSrc} alt="Foto Selfie" className="aspect-square w-full rounded-xl object-cover" />
+                  <p className="mt-2 text-center text-[11px] font-semibold text-slate-400">Foto Selfie</p>
                 </div>
               )}
               {ttdSrc && (
-                <div className="flex flex-col items-center gap-1.5 rounded-xl bg-white/10 p-3 backdrop-blur-sm">
-                  <img src={ttdSrc} alt="Tanda tangan" className="h-24 w-full rounded-xl border-2 border-white/30 bg-white object-contain shadow-md" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-white/60">Tanda Tangan</span>
+                <div className="rounded-2xl bg-white p-3 dark:bg-slate-800">
+                  <img src={ttdSrc} alt="Tanda tangan" className="aspect-square w-full rounded-xl border border-slate-100 bg-white object-contain dark:border-slate-700" />
+                  <p className="mt-2 text-center text-[11px] font-semibold text-slate-400">Tanda Tangan</p>
                 </div>
               )}
             </div>
+          )}
 
-            {(k.lokasi || k.catatan) && (
-              <div className="relative mx-auto mt-4 max-w-md space-y-2 text-left">
-                {k.lokasi && titik && (
-                  <div className="overflow-hidden rounded-xl bg-white/10 backdrop-blur-sm">
-                    <iframe src={`https://maps.google.com/maps?q=${titik.lat},${titik.lng}&output=embed`}
-                      className="h-32 w-full border-0" loading="lazy" title="Lokasi absen" />
-                    <a href={`https://maps.google.com/maps?q=${titik.lat},${titik.lng}`} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-between gap-2 px-3 py-2">
-                      <span className="truncate font-mono text-[10.5px] text-white/70">{k.lokasi}</span>
-                      <span className="flex shrink-0 items-center gap-1 text-[10.5px] font-bold text-white/90">
-                        <ExternalLink size={10} /> Maps
-                      </span>
-                    </a>
-                  </div>
-                )}
-                {k.catatan && (
-                  <div className="flex items-start gap-2 rounded-xl bg-white/10 px-3 py-2 backdrop-blur-sm">
-                    <StickyNote size={13} className="mt-0.5 shrink-0 text-white/70" />
-                    <span className="text-[11px] text-white/80">{k.catatan}</span>
-                  </div>
-                )}
+          {k.lokasi && titik && (
+            <div className="mt-3 overflow-hidden rounded-2xl bg-white dark:bg-slate-800">
+              <iframe src={`https://maps.google.com/maps?q=${titik.lat},${titik.lng}&output=embed`}
+                className="h-36 w-full border-0" loading="lazy" title="Lokasi absen" />
+              <a href={`https://maps.google.com/maps?q=${titik.lat},${titik.lng}`} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-between gap-2 px-4 py-3">
+                <span className="truncate font-mono text-[11px] text-slate-500 dark:text-slate-400">{k.lokasi}</span>
+                <span className="flex shrink-0 items-center gap-1 text-[11px] font-bold" style={{ color: accent }}>
+                  <ExternalLink size={11} /> Buka Maps
+                </span>
+              </a>
+            </div>
+          )}
+
+          {k.catatan && (
+            <div className="mt-3 flex items-start gap-2.5 rounded-2xl bg-white p-4 dark:bg-slate-800">
+              <StickyNote size={15} className="mt-0.5 shrink-0 text-blue-500" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-slate-400">Catatan dari Ketenagaan</p>
+                <p className="mt-0.5 text-sm leading-snug text-slate-700 dark:text-slate-200">{k.catatan}</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          <button type="button" onClick={onClose}
+            className="mt-4 w-full rounded-2xl bg-slate-900 py-3.5 text-sm font-bold text-white active:scale-[0.99] dark:bg-white dark:text-slate-900">
+            Tutup
+          </button>
         </div>
       </motion.div>
     </div>,
