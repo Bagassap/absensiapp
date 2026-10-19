@@ -41,8 +41,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id" className={`${satoshi.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-white text-black">
+    <html lang="id" suppressHydrationWarning className={`${satoshi.variable} h-full antialiased`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("theme");var d=t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;if(d)document.documentElement.classList.add("dark")}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col bg-white text-black dark:bg-slate-900 dark:text-slate-100">
         <PwaInstall />
         <ToastProvider>
           <ConfirmProvider>{children}</ConfirmProvider>

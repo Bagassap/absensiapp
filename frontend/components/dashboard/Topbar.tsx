@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Bell, ChevronDown, LogOut,
+  Bell, ChevronDown, LogOut, Sun, Moon,
   UserCircle, CheckCircle2, Info, AlertTriangle,
   CheckCheck, Clock,
 } from "lucide-react";
@@ -14,6 +14,7 @@ import { timeAgo } from "@/components/dashboard/ActivityList";
 import { Avatar } from "@/components/shared/Avatar";
 import { ProfilSayaModal } from "@/components/shared/ProfilSayaModal";
 import { LiveClock } from "@/components/shared/LiveClock";
+import { useTheme } from "@/lib/theme";
 import { PushToggle } from "@/components/shared/PushToggle";
 
 
@@ -78,6 +79,7 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
   const router   = useRouter();
   const pathname = usePathname();
   const { title, subtitle } = getPageInfo(pathname);
+  const { isDark, toggle: toggleTheme } = useTheme();
   const isHome = pathname === "/admin/dashboard" || pathname === "/guru/absensi-harian";
 
   const [notifOpen,      setNotifOpen]      = useState(false);
@@ -213,6 +215,16 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
 
         <div className="contents lg:flex lg:items-center lg:gap-2">
 
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={isDark ? "Mode terang" : "Mode gelap"}
+            aria-label={isDark ? "Mode terang" : "Mode gelap"}
+            className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:bg-slate-700/50 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white lg:flex"
+          >
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setNotifOpen((v) => !v)}
@@ -341,6 +353,13 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{user.nama}</p>
                     <p className="text-xs text-gray-400 dark:text-slate-400">{ROLE_LABEL[user.role]}</p>
                   </div>
+                  <button
+                    onClick={toggleTheme}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-700/50 lg:hidden"
+                  >
+                    {isDark ? <Sun size={14} /> : <Moon size={14} />}
+                    {isDark ? "Mode Terang" : "Mode Gelap"}
+                  </button>
                   <button
                     onClick={() => {
                       setDropdownOpen(false);

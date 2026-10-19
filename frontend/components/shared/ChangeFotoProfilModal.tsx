@@ -112,8 +112,8 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
                   <ImagePlus size={20} className="text-blue" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-black/80">Pilih foto baru</p>
-                  <p className="mt-1 text-xs text-black/45">JPG, PNG, atau WEBP — otomatis dikompres</p>
+                  <p className="text-sm font-semibold text-black/80 dark:text-white/85">Pilih foto baru</p>
+                  <p className="mt-1 text-xs text-black/45 dark:text-white/50">JPG, PNG, atau WEBP — otomatis dikompres</p>
                 </div>
               </button>
             ) : (
@@ -132,7 +132,7 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
                   />
                 </div>
                 <div className="flex items-center gap-3 px-1">
-                  <span className="shrink-0 text-xs font-medium text-black/50">Perbesar</span>
+                  <span className="shrink-0 text-xs font-medium text-black/50 dark:text-white/55">Perbesar</span>
                   <input
                     type="range" min={1} max={3} step={0.01} value={zoom}
                     onChange={(e) => setZoom(Number(e.target.value))}
@@ -142,7 +142,7 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
                 <button
                   type="button"
                   onClick={() => { setImageSrc(null); setCroppedAreaPixels(null); }}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-black/10 px-4 py-2.5 text-sm font-semibold text-black/60 transition-colors hover:bg-black/5"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-black/10 px-4 py-2.5 text-sm font-semibold text-black/60 dark:border-white/15 dark:text-white/70 transition-colors hover:bg-black/5"
                 >
                   <RotateCcw size={14} />
                   Pilih Ulang
