@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import GreetingHero from "@/components/dashboard/GreetingHero";
 import { AksesCepatCard } from "@/components/dashboard/AksesCepatCard";
+import { GradientStatScroller, SectionHeading } from "@/components/dashboard/GradientStatScroller";
 import { KehadiranAreaChart } from "@/components/dashboard/KehadiranAreaChart";
 import { Avatar } from "@/components/shared/Avatar";
 import { StatusBadge } from "@/components/absensi-harian/StatusBadge";
@@ -221,7 +222,43 @@ export default function AdminDashboardPage() {
         <GreetingHero nama={user.nama} role={user.role} />
       </motion.div>
 
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="lg:hidden">
+        <GradientStatScroller
+          items={[
+            { key: "total", label: "Total Guru", value: data.totalGuru, tone: "indigo", icon: Users, caption: `${kegiatanHariIni} kegiatan hari ini`, onClick: () => setModalKind("total") },
+            { key: "persen", label: "Absen Hari Ini", value: persen, suffix: "%", tone: "orange", icon: Calendar, caption: `${guruSudahAbsen} sudah · ${guruBelumAbsen} belum`, onClick: () => setModalKind("persen") },
+            { key: "sudah", label: "Sudah Absen", value: guruSudahAbsen, tone: "green", icon: Activity, caption: `dari ${data.totalGuru} guru`, onClick: () => setModalKind("sudah") },
+            { key: "belum", label: "Belum Absen", value: guruBelumAbsen, tone: "rose", icon: UserX, caption: `${100 - persen}% dari total`, onClick: () => setModalKind("belum") },
+          ]}
+        />
+
+        <SectionHeading title="Status Kehadiran" action="Lihat semua" href="/admin/absensi-harian" />
+        {data.statusGuru.length === 0 ? (
+          <p className="rounded-3xl border border-slate-100 bg-white py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800">Belum ada guru terdaftar</p>
+        ) : (
+          <ul className="space-y-3">
+            {data.statusGuru.slice(0, 6).map((g) => (
+              <li key={g.guruId} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-[0_6px_18px_-12px_rgba(15,23,42,0.18)] dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex items-center gap-3">
+                  <Avatar src={g.fotoProfil} nama={g.nama} sizePx={44} fallbackBg={avatarColor(g.nama)} textClassName="text-xs font-extrabold" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{g.nama}</p>
+                    <p className="truncate text-xs text-slate-400">{g.nip ?? "—"}</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-rose-50 px-3.5 py-1.5 text-[11px] font-semibold text-rose-400 dark:bg-rose-500/10">
+                    {g.kegiatanDiabsen} dari {g.totalKegiatanHariIni} kegiatan
+                  </span>
+                  <StatusBadge sudahAbsen={g.sudahAbsen} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="hidden grid-cols-2 gap-4 lg:grid xl:grid-cols-4">
         <AksesCepatCard
           icon={Users} label="Total Guru" value={data.totalGuru} tone="blue" delay={0.05}
           footerLeftLabel="Kegiatan" footerLeftValue={String(kegiatanHariIni)}
@@ -319,7 +356,7 @@ export default function AdminDashboardPage() {
       <motion.div
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.4 }}
-        className="rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.07)] dark:bg-slate-800"
+        className="hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.07)] dark:bg-slate-800 lg:block"
       >
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-700/40">
           <div className="flex items-center gap-2.5">

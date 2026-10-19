@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ClipboardCheck, MapPin, Camera, CheckCircle2, Loader2, Clock,
   FileSignature, ArrowRight, ChevronLeft, ChevronRight, CalendarX2, UserCheck, FileText,
-  Check, StickyNote, X, ExternalLink, Play, Lock,
+  Check, StickyNote, X, ExternalLink, Play, Lock, Target,
 } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
 import { SignaturePad } from "@/components/absensi-harian/SignaturePad";
@@ -15,6 +15,7 @@ import { todayJakarta, parseLokasi, resolveMediaSrc, formatTgl } from "@/compone
 import { StatistikAbsensiChart } from "@/components/absensi-harian/StatistikAbsensiChart";
 import type { KegiatanUntukGuru } from "@/components/absensi-harian/types";
 import { LiveClock } from "@/components/shared/LiveClock";
+import { GradientStatScroller, SectionHeading } from "@/components/dashboard/GradientStatScroller";
 import { compressImage, readAsDataUrl, describePhotoError } from "@/lib/compressImage";
 
 const INSECURE_CONTEXT_MSG = "Akses GPS memerlukan koneksi aman. Silakan buka lewat domain https, jangan menggunakan alamat IP langsung.";
@@ -523,21 +524,15 @@ export function AbsensiSayaWizard() {
             </div>
           ) : (
             <>
-              <div className="relative overflow-hidden rounded-[28px] px-5 py-7 text-center shadow-[0_18px_36px_-14px_rgba(0,0,0,0.45)]" style={{ background: "#013920" }}>
-                <div className="pointer-events-none absolute -right-12 -top-14 h-40 w-40 rounded-full bg-white/8" />
-                <div className="pointer-events-none absolute -bottom-12 -left-10 h-28 w-28 rounded-full bg-white/6" />
-                <div className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl" style={{ background: "#00C85333" }} />
-                <p className="relative text-[10px] font-bold uppercase tracking-[0.25em] text-white/60">{formatTgl(today)}</p>
-                <div className="relative mt-2"><LiveClock variant="hero" /></div>
-                <p className="relative mt-1 text-[10px] font-bold uppercase tracking-widest text-white/40">WIB</p>
-                <p className="relative mt-4 text-xs font-semibold text-white/90">
-                  {sudahList.length} dari {kegiatanList.length} kegiatan sudah Anda ikuti hari ini
-                </p>
-                <div className="relative mx-auto mt-3 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-white/15">
-                  <div className="h-full rounded-full transition-all"
-                    style={{ background: "#00C853", width: `${kegiatanList.length > 0 ? Math.round((sudahList.length / kegiatanList.length) * 100) : 0}%` }} />
-                </div>
-              </div>
+              <GradientStatScroller
+                items={[
+                  { key: "progres", label: "Progres", value: kegiatanList.length > 0 ? Math.round((sudahList.length / kegiatanList.length) * 100) : 0, suffix: "%", tone: "indigo", icon: Target, caption: `${sudahList.length} dari ${kegiatanList.length} kegiatan` },
+                  { key: "sudah", label: "Sudah Absen", value: sudahList.length, tone: "green", icon: Check, caption: "kegiatan diikuti", onClick: () => setAbsensiTab("SUDAH") },
+                  { key: "belum", label: "Belum Absen", value: belumList.length, tone: "orange", icon: Clock, caption: "kegiatan tersisa", onClick: () => setAbsensiTab("BELUM") },
+                ]}
+              />
+
+              <SectionHeading title="Kegiatan Hari Ini" action={formatTgl(today)} onAction={() => {}} />
 
               <div className="relative rounded-full bg-white p-1 shadow-[0_2px_6px_rgba(0,0,0,0.06)] dark:bg-slate-800">
                 <motion.div className="absolute inset-y-1 rounded-full" style={{ width: "50%", background: absensiTab === "BELUM" ? "#EF4444" : "#00C853" }}
