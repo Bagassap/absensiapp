@@ -29,8 +29,6 @@ const fotoProfilStorage = diskStorage({
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
-  // Compression always normalizes the output to JPEG, so the stored
-  // filename is forced to .jpg regardless of the uploaded extension.
   filename: (_req, file, cb) => {
     const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, unique + '.jpg');

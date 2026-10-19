@@ -3,12 +3,6 @@
 import { motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 
-// Kartu "wallet" solid — dekorasi lingkaran blur, badge ikon di kanan atas,
-// angka besar di tengah, baris footer dua kolom. Ditiru dari desain "Akses
-// Cepat" LMS PPLG, direskin ke palet Absensi Guru. Green (#00C853) tetap
-// warna utama brand, tapi tone lain sengaja dipakai di luar palet inti
-// (blue/amber) supaya 4 kartu berjejer tidak didominasi hijau — teks selalu
-// hitam atau putih saja, tidak pernah berwarna.
 export type CardTone = "green" | "success" | "red" | "blue" | "amber";
 
 const TONE_HEX: Record<CardTone, string> = {
@@ -19,9 +13,6 @@ const TONE_HEX: Record<CardTone, string> = {
   amber: "#F59E0B",
 };
 
-// Semua 4 kartu utama sengaja dipakai dengan teks putih, termasuk di atas
-// hijau/amber yang cukup terang — permintaan eksplisit supaya keempatnya
-// konsisten putih, bukan campur hitam/putih tergantung tone.
 const TONE_FG: Record<CardTone, string> = {
   green: "#FFFFFF",
   success: "#FFFFFF",

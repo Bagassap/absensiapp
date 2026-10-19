@@ -42,8 +42,6 @@ export type AbsensiKegiatanRow = {
   fotoProfil: string | null;
   kegiatanId: string;
   kegiatanNama: string;
-  // Terisi lokasi tugas piket kalau baris ini "Piket Harian" untuk guru
-  // yang memang berjadwal piket hari itu.
   keterangan: string | null;
   waktuAbsen: string;
   lokasi: string;
@@ -53,8 +51,6 @@ export type AbsensiKegiatanRow = {
   verifiedAt: string | null;
   verifiedByNama: string | null;
   catatan: string | null;
-  // "ALFA" = baris sintetis dari backend (guru belum absen sama sekali
-  // untuk kegiatan ini) — id-nya berprefix "alfa-", bukan record sungguhan.
   status: "HADIR" | "IZIN" | "ALFA";
 };
 

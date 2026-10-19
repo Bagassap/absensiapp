@@ -1,13 +1,3 @@
-/**
- * On-demand storage monitoring report. Run with:
- *   npm run storage:report
- * (or wire into cron: `cd /path/to/backend && npx tsx scripts/storage-report.ts`)
- *
- * Reports uploads/ folder size broken down by upload type, TTD base64
- * storage inside Postgres (a separate concern from disk files), how many
- * orphaned upload files exist, and a rough days-until-full projection based
- * on file mtimes.
- */
 import 'dotenv/config';
 import { promises as fs } from 'fs';
 import { join, basename } from 'path';
@@ -51,7 +41,6 @@ async function main() {
   console.log('LAPORAN STORAGE — ' + new Date().toISOString());
   console.log('='.repeat(60));
 
-  // --- Disk-level free space (whole filesystem the uploads dir lives on) ---
   const fsStat = await fs.statfs(UPLOADS_ROOT).catch(() => null);
   let diskTotal = 0;
   let diskFree = 0;
@@ -64,7 +53,6 @@ async function main() {
     console.log(`  Bebas : ${fmtGB(diskFree)}`);
   }
 
-  // --- uploads/ breakdown per folder ---
   const subfolders = ['absensi-harian'];
   console.log(`\nFolder uploads/ — breakdown per jenis:`);
   let totalBytes = 0;
@@ -83,7 +71,6 @@ async function main() {
   }
   console.log(`  ${'TOTAL'.padEnd(16)} : ${totalCount} file, ${fmtMB(totalBytes)}`);
 
-  // --- TTD base64 stored in Postgres (separate from disk files) ---
   const ttdRows = await prisma.absensiKegiatan.findMany({ select: { ttd: true } });
   let ttdBytes = 0;
   let ttdCount = 0;
@@ -97,7 +84,6 @@ async function main() {
   console.log(`  ${ttdCount} tanda tangan, ~${fmtMB(ttdBytes)} di dalam tabel absensi_kegiatan`);
   console.log(`  Ukuran total database saat ini: ${dbSizeRow[0]?.size ?? 'unknown'}`);
 
-  // --- Orphaned files (on disk, not referenced by any DB row) ---
   const absensiRows = await prisma.absensiKegiatan.findMany({ select: { foto: true } });
   const referenced = new Set<string>();
   for (const r of absensiRows) {
@@ -120,7 +106,6 @@ async function main() {
     console.log(`  (biasanya sisa upload yang gagal/dibatalkan sebelum submit selesai — aman dihapus manual, tidak dihapus otomatis oleh script ini)`);
   }
 
-  // --- Growth projection based on file mtimes ---
   if (allMtimes.length > 3 && diskFree > 0) {
     allMtimes.sort((a, b) => a.getTime() - b.getTime());
     const first = allMtimes[0];

@@ -7,9 +7,6 @@ const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
   GURU:  { label: "Guru",   cls: "bg-white/20 text-white" },
 };
 
-// Dibaca eksplisit sebagai jam WIB (Asia/Jakarta) via Intl, bukan getHours()
-// lokal — komponen ini render duluan di server saat SSR, dan server
-// berjalan di UTC, jadi getter lokal biasa akan salah beberapa jam.
 function jakartaHour(): number {
   return Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jakarta", hour: "2-digit", hourCycle: "h23" }).format(new Date()));
 }

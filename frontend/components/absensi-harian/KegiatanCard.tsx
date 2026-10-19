@@ -40,20 +40,11 @@ function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
 
-// "6 September 2026" — hari, nama bulan Indonesia lengkap (bukan
-// disingkat), tahun. Dipakai di toast konfirmasi saat tanggal kegiatan
-// beda dari tanggal yang sedang dilihat di halaman.
 function formatTanggalFull(tgl: string): string {
   const [y, m, d] = tgl.split("-").map(Number);
   return `${d} ${BULAN_NAMES[m - 1]} ${y}`;
 }
 
-// Sama alasannya dengan Time24Select: native <input type="date"> dan
-// kalender popup-nya ikut locale browser/OS (bulan bisa jadi angka atau
-// disingkat versi Inggris) — tiga dropdown Tanggal/Bulan/Tahun ini
-// menjamin nama bulan Indonesia lengkap (bukan angka, bukan singkatan)
-// apa pun locale browser admin, dan mengizinkan tanggal kegiatan berbeda
-// dari tanggal yang sedang dilihat di halaman.
 function TanggalSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [yStr, mStr, dStr] = value ? value.split("-") : ["", "", ""];
   const y = yStr ? Number(yStr) : undefined;
@@ -90,10 +81,6 @@ function TanggalSelect({ value, onChange }: { value: string; onChange: (v: strin
   );
 }
 
-// Native <input type="time"> renders AM/PM on browsers whose locale defaults
-// to 12-jam (mis. en-US) — tidak bisa dipaksa 24-jam lewat HTML/CSS saja.
-// Dropdown jam/menit manual ini menjamin format 24-jam WIB apa pun locale
-// browser admin.
 function Time24Select({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [h, m] = value ? value.split(":") : ["", ""];
   return (
@@ -117,9 +104,6 @@ const HARI_LABEL: Record<HariRecurring, string> = {
 };
 const HARI_SEKOLAH: HariRecurring[] = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT"];
 
-// "Setiap Hari" (ke-7) / "Senin–Jumat" (persis 5 hari sekolah) / daftar
-// hari dipisah koma — supaya badge & konfirmasi hapus tidak perlu
-// menyebut 5-7 nama hari satu-satu tiap kali.
 function formatHariList(hari: HariRecurring[]): string {
   const set = new Set(hari);
   if (HARI_LIST.every((h) => set.has(h))) return "Setiap Hari";
@@ -127,9 +111,6 @@ function formatHariList(hari: HariRecurring[]): string {
   return HARI_LIST.filter((h) => set.has(h)).map((h) => HARI_LABEL[h]).join(", ");
 }
 
-// Grid checkbox 7 hari + tombol "Pilih Semua Hari" / "Hari Sekolah" — bisa
-// pilih lebih dari 1 hari sekaligus per aturan (mis. kegiatan yang sama
-// tiap Senin-Jumat), beda dari dropdown 1-hari yang lama.
 function HariMultiSelect({ value, onChange }: { value: HariRecurring[]; onChange: (v: HariRecurring[]) => void }) {
   function toggle(h: HariRecurring) {
     onChange(value.includes(h) ? value.filter((x) => x !== h) : [...value, h]);
@@ -354,12 +335,6 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
     }
   }
 
-  // "Kegiatan Hari Ini" cuma menampilkan kegiatan satu-kali (dibuat manual
-  // untuk tanggal ini saja) — kegiatan yang berasal dari aturan Kegiatan
-  // Berulang (recurringSourceId terisi) tidak ditampilkan dobel di sini,
-  // cukup dikelola dari section "Kegiatan Berulang" di bawah supaya tidak
-  // membingungkan (dua tempat menampilkan jam yang sama untuk kegiatan
-  // yang sama).
   const oneOffList = list.filter((k) => !k.recurringSourceId);
 
   return (

@@ -23,8 +23,6 @@ export class ImpersonationController {
     return this.service.stopImpersonate(req.user);
   }
 
-  // UsersService.resetPassword() enforces that only the super admin may
-  // reset another account's password.
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/reset-password')

@@ -4,9 +4,6 @@ import { tokenCookieOptions } from "@/lib/authCookie";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3001";
 
-// Re-issues the session cookie from the account's current DB state — see
-// AuthService.refreshToken for why this exists (stale onboarding-gate
-// claims on a session that predates a change made elsewhere).
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;

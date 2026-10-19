@@ -29,9 +29,6 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
       setError("Format file harus JPG, PNG, atau WEBP.");
       return;
     }
-    // Sengaja tanpa batas ukuran — getCroppedImg() selalu mengompres ke
-    // ≤1MB sebelum diunggah, jadi foto galeri HP yang aslinya belasan MB
-    // tidak perlu ditolak lebih dulu di sini.
     setError(null);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
@@ -59,9 +56,6 @@ export function ChangeFotoProfilModal({ onClose, gradient }: { onClose: () => vo
         return;
       }
 
-      // The JWT cookie was reissued with the new fotoProfil claim server-side —
-      // reload so the topbar/sidebar (which read it via getCurrentUser() in the
-      // layout) pick it up immediately instead of showing the stale photo.
       window.location.reload();
     } catch {
       setError("Tidak dapat terhubung ke server. Periksa koneksi Anda.");

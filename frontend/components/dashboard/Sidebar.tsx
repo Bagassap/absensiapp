@@ -42,8 +42,6 @@ const SIDEBAR_ACCENT = "#00C853";
 const TOGGLE_BTN_CLASS =
   "flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 shadow-sm transition-all duration-200 hover:border-primary/30 hover:bg-primary/10 hover:text-primary dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:border-white/20 dark:hover:bg-white/15 dark:hover:text-white";
 
-// Tagline tetap satu kalimat ini saja, tidak lagi berputar-putar per hari —
-// diminta eksplisit supaya konsisten setiap saat.
 const SIDEBAR_TAGLINE = "Mendidik dengan Keteladanan";
 
 export function Sidebar({

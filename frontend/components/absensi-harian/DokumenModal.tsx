@@ -9,9 +9,6 @@ import type { AbsensiKegiatanRow } from "./types";
 import { BRAND_GRADIENT, formatTgl, avatarColor, parseLokasi, resolveMediaSrc } from "./shared";
 import { Avatar } from "@/components/shared/Avatar";
 
-// Badge biru terverifikasi bergaya IG/X — dibuat manual (bulatan solid +
-// centang putih) alih-alih pakai ikon BadgeCheck outline lucide, karena
-// versi outline-nya terlalu tipis/samar di ukuran kecil untuk "mencolok".
 function VerifiedBadge({ size = 16 }: { size?: number }) {
   return (
     <span title="Terverifikasi" className="inline-flex shrink-0 items-center justify-center rounded-full shadow-sm"
@@ -190,10 +187,6 @@ export function DokumenModal({ row, tanggal, onClose, onVerifiedChange }: {
               <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Dokumen Absensi</p>
             </div>
             <div className="flex-1 sm:min-h-0 sm:overflow-y-auto">
-              {/* Grid 2 kolom (Foto + Lokasi berdampingan, TTD selebar penuh
-                  di bawah) supaya modal terasa persegi panjang ke samping,
-                  bukan tumpukan kartu vertikal yang membuatnya tinggi seperti
-                  kotak. */}
               <div className="grid grid-cols-1 gap-2.5 p-3 sm:grid-cols-2 sm:gap-3 sm:p-4">
                 {fotoSrc && (
                   <div className="overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-700/50 bg-white dark:bg-slate-800/60 shadow-sm">

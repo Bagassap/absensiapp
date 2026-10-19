@@ -43,9 +43,6 @@ export function createUploadAuthMiddleware(
       return;
     }
 
-    // Only ADMIN and GURU exist as roles — every authenticated, active
-    // account may view uploaded files (own foto profil, own/others'
-    // absensi evidence for admin's monitoring view).
     next();
   };
 }

@@ -7,11 +7,6 @@ function getInitials(name: string): string {
   return name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 }
 
-/**
- * Shows the real profile photo when available, falling back to an
- * initials badge (on the given `fallbackBg`) while loading, on error, or
- * when the user hasn't uploaded a photo yet.
- */
 export function Avatar({
   src, nama, sizePx, fallbackBg, textClassName, className, ring,
 }: {

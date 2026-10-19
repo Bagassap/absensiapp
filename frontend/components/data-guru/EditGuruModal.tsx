@@ -25,9 +25,6 @@ export function EditGuruModal({ guru, onClose, onSaved }: {
   const [noWa, setNoWa] = useState(guru.guru?.noWa ?? "");
   const [saving, setSaving] = useState(false);
 
-  // Sama seperti alur "Lengkapi Foto Profil" awal (react-easy-crop bulat +
-  // slider zoom) — dipakai ulang di sini supaya pengalaman ganti foto guru
-  // konsisten dengan pengalaman pertama kali mengisi foto.
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -47,9 +44,6 @@ export function EditGuruModal({ guru, onClose, onSaved }: {
       toast.error("Format tidak didukung", "Gunakan foto JPG, PNG, atau WEBP");
       return;
     }
-    // Sengaja tanpa batas ukuran — getCroppedImg() selalu mengompres ke
-    // ≤1MB sebelum diunggah, jadi foto galeri HP yang aslinya belasan MB
-    // tidak perlu ditolak lebih dulu di sini.
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     const reader = new FileReader();

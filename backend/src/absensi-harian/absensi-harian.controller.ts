@@ -52,7 +52,6 @@ export class AbsensiHarianController {
     return 'harian';
   }
 
-  // ── Kegiatan CRUD (admin) ────────────────────────────────────────────────
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.GURU)
@@ -82,7 +81,6 @@ export class AbsensiHarianController {
     return this.service.deleteKegiatan(id);
   }
 
-  // ── Kegiatan berulang mingguan (admin) ──────────────────────────────────
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
@@ -112,7 +110,20 @@ export class AbsensiHarianController {
     return this.service.deleteKegiatanRecurring(id);
   }
 
-  // ── Guru: kegiatan hari ini + absen sendiri ──────────────────────────────
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('dhuha')
+  getDhuhaInfo(@Query('tanggal') tanggal: string) {
+    return this.service.getDhuhaInfo(tanggal || todayStr());
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch('dhuha/anchor')
+  setDhuhaAnchor(@Body('tanggal') tanggal: string) {
+    return this.service.setDhuhaAnchor(tanggal);
+  }
+
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.GURU)
@@ -140,7 +151,6 @@ export class AbsensiHarianController {
     });
   }
 
-  // ── Admin: rekap & laporan ────────────────────────────────────────────────
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
@@ -189,7 +199,6 @@ export class AbsensiHarianController {
     res.send(result.buffer);
   }
 
-  // ── Export ────────────────────────────────────────────────────────────────
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)

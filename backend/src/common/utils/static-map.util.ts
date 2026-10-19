@@ -2,18 +2,6 @@ import sharp from 'sharp';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 
-// Free, keyless static map thumbnails built from the official OSM raster
-// tile server (tile.openstreetmap.org) — the previously-suggested community
-// mirror (staticmap.openstreetmap.de) no longer resolves at all. Only ONE
-// tile is ever fetched per unique location (no multi-tile stitching), and
-// every fetched tile is cached to disk indefinitely (map imagery doesn't
-// meaningfully change), which matters a lot here: a single "PDF Per Kelas"
-// export renders one page per student, each with up to two locations, so a
-// 30-student class can mean ~60 lookups in one export — after the first
-// export warms the cache, students attending from the same school premises
-// share the same tile and cost zero further requests. Per OSM's Tile Usage
-// Policy this also always sends a descriptive User-Agent and never fetches
-// more than one tile per call.
 const ZOOM = 16;
 const TILE_SIZE = 256;
 const OUT_W = 200;
@@ -55,7 +43,6 @@ async function fetchTileBuffer(tileX: number, tileY: number): Promise<Buffer | n
   try {
     return await fs.readFile(cachePath);
   } catch {
-    // not cached yet — fall through to network fetch
   }
   try {
     const controller = new AbortController();
@@ -79,12 +66,6 @@ async function fetchTileBuffer(tileX: number, tileY: number): Promise<Buffer | n
   }
 }
 
-/**
- * Builds a 200x150 PNG map thumbnail with a pin at the given "lat,lng"
- * string, or null on ANY failure (invalid input, network error, timeout,
- * compositing error) — callers must treat null as "no map available" and
- * keep rendering the rest of the document unaffected.
- */
 export async function getStaticMapImage(lokasi?: string | null): Promise<Buffer | null> {
   const coords = parseLatLng(lokasi);
   if (!coords) return null;

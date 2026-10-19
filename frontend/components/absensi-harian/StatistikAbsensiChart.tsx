@@ -7,10 +7,6 @@ const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 type Props = { diikuti: number; belum: number; total: number };
 
-// Radial progress chart untuk statistik absensi kegiatan guru — pola sama
-// dengan "Statistik Absensi" pada absensi harian siswa (lmspplg), diskalakan
-// ke 2 kategori sesuai model kegiatan kita (bukan Hadir/Sakit/Izin/Alpha):
-// Diikuti (hijau) vs Belum Diikuti (merah).
 export function StatistikAbsensiChart({ diikuti, belum, total }: Props) {
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
   const diikutiPct = pct(diikuti);

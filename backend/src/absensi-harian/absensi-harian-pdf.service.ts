@@ -75,13 +75,6 @@ async function readFotoBuffer(fotoUrl?: string | null): Promise<Buffer | null> {
   }
 }
 
-// File foto absensi asli bisa ratusan KB — kalau di-embed apa adanya ke
-// laporan yang isinya ratusan/ribuan baris (rekap "semua guru" mingguan/
-// bulanan), ukuran PDF-nya bisa bengkak sampai ratusan MB. Thumbnail kecil
-// (JPEG kualitas sedang) tetap menampilkan foto SUNGGUHAN di laporan
-// (bukan teks placeholder) dan cukup besar untuk terlihat jelas, tapi
-// ukurannya cuma beberapa KB per baris — dipakai di semua varian laporan
-// supaya filenya tetap ringan walau ribuan baris.
 async function readFotoThumbnail(fotoUrl?: string | null): Promise<Buffer | null> {
   const original = await readFotoBuffer(fotoUrl);
   if (!original) return null;
@@ -106,8 +99,6 @@ function formatTanggal(tanggal: string): string {
   }
 }
 
-// "2 September 2026" — tanpa nama hari, dipakai untuk judul rentang
-// mingguan/bulanan supaya tidak berulang-ulang menyebut hari.
 function formatTanggalRingkas(tanggal: string): string {
   try {
     return new Date(`${tanggal}T00:00:00`).toLocaleDateString('id-ID', {
@@ -118,8 +109,6 @@ function formatTanggalRingkas(tanggal: string): string {
   }
 }
 
-// "ABSENSI MINGGUAN" · "2 September 2026 – 6 September 2026" atau
-// "ABSENSI BULANAN" · "September 2026".
 function rangeTitle(mode: 'mingguan' | 'bulanan', tanggalMulai: string, tanggalSelesai: string): { title: string; subtitle: string } {
   if (mode === 'bulanan') {
     const bulanTahun = new Date(`${tanggalMulai}T00:00:00`).toLocaleDateString('id-ID', {
@@ -153,16 +142,6 @@ function header(doc: PDFKit.PDFDocument, title: string, subtitle: string, conten
 
 @Injectable()
 export class AbsensiHarianPdfService {
-  // Tabel landscape: Nama (kalau includeNama) - Tanggal - Jam Absen -
-  // Kegiatan - Status - Foto - Catatan. Lokasi/TTD sengaja tidak ikut
-  // kolom ini (beda dari versi lama). Foto selalu foto sungguhan (pakai
-  // thumbnail kecil dari readFotoThumbnail, bukan teks placeholder) — tetap
-  // ringan walau laporannya ribuan baris karena ukurannya sudah dikecilkan
-  // dulu sebelum di-embed, lihat komentar readFotoThumbnail. Kolom
-  // "Catatan": sudah diverifikasi admin → selalu "Terverifikasi" (catatan
-  // tertulisnya tidak dipakai di kolom ini kalau sudah diverifikasi);
-  // belum diverifikasi tapi admin sempat menulis catatan → tampilkan
-  // catatan itu; belum diverifikasi & tidak ada catatan → "-".
   private async renderRowsTable(
     doc: PDFKit.PDFDocument,
     rows: AbsensiRow[],
@@ -170,11 +149,6 @@ export class AbsensiHarianPdfService {
     margin: number,
     contentWidth: number,
     includeNama: boolean,
-    // true buat laporan rentang (mingguan/bulanan) — baris-barisnya
-    // mencakup banyak tanggal sekaligus, jadi tiap kali tanggalnya berganti
-    // disisipkan pita pembatas "Senin, 14 September 2026" supaya jelas mana
-    // milik hari yang mana. Laporan harian (semua barisnya 1 tanggal yang
-    // sama, sudah ada di subjudul header) tidak perlu ini.
     showDateSeparators = false,
   ) {
     let y = startY;
@@ -246,18 +220,13 @@ export class AbsensiHarianPdfService {
       const fotoX = margin + colWidths.slice(0, fotoColI).reduce((a, b) => a + b, 0);
       const fotoBuf = await readFotoThumbnail(r.foto);
       if (fotoBuf) {
-        try { doc.image(fotoBuf, fotoX + 6, y + (rowH - thumb) / 2, { width: thumb, height: thumb, fit: [thumb, thumb] }); } catch { /* skip unreadable image */ }
+        try { doc.image(fotoBuf, fotoX + 6, y + (rowH - thumb) / 2, { width: thumb, height: thumb, fit: [thumb, thumb] }); } catch { }
       } else {
         doc.font('Satoshi').fontSize(8.5).fillColor('#cbd5e1').text('-', fotoX + 4, textY, { width: colWidths[fotoColI] - 8 });
       }
 
       const catatanColI = includeNama ? 6 : 5;
       const catatanX = margin + colWidths.slice(0, catatanColI).reduce((a, b) => a + b, 0);
-      // Isi catatan tertulis admin SELALU diutamakan (kalau ada) — jangan
-      // ditimpa "Terverifikasi" walau baris ini sudah diverifikasi, karena
-      // catatan tertulis (mis. "Salah isi kegiatan") lebih informatif
-      // daripada sekadar status verifikasi polos. "Terverifikasi" cuma
-      // dipakai sebagai fallback kalau diverifikasi TANPA catatan tertulis.
       const adminSuffix = r.verifiedByNama ? ` — ${r.verifiedByNama}` : '';
       const catatanText = r.catatan ? `${r.catatan}${adminSuffix}` : r.verified ? `Terverifikasi${adminSuffix}` : '-';
       const catatanColor = r.catatan ? INK : r.verified ? VERIFIED_COLOR : '#cbd5e1';
@@ -308,9 +277,6 @@ export class AbsensiHarianPdfService {
     return done;
   }
 
-  // Sama seperti build() harian — landscape, tabel per-submission (bukan
-  // ringkasan per-guru) — tapi "Alfa" tidak disertakan di sini (lihat
-  // komentar di getRekapRangeForExport, rentang panjang bisa membengkak).
   async buildRange(rekap: RekapRange): Promise<Buffer> {
     const { doc, done } = newDoc();
     doc.addPage({ size: 'A4', layout: 'landscape', margin: 40 });
@@ -332,12 +298,6 @@ export class AbsensiHarianPdfService {
     const { title, subtitle } = rangeTitle(rekap.mode, rekap.tanggalMulai, rekap.tanggalSelesai);
     const y = header(doc, title, `${rekap.guruNama ?? '-'} · ${subtitle}`, contentWidth, margin);
 
-    // Baris "Tidak Hadir" (r.hadir === false) tidak punya foto/catatan sama
-    // sekali — disaring dulu (beda dari tabel harian yang menampilkan Alfa)
-    // karena di sini "Tidak Hadir" tidak selalu berarti benar-benar alfa
-    // (lihat getGuruAbsensiRangeForExport: hanya kegiatan yang relevan buat
-    // guru ini yang masuk daftar, jadi baris kosong di sini kurang
-    // informatif dibanding ringkasan persentase di atas).
     const rows: AbsensiRow[] = rekap.rows
       .filter((r) => r.hadir)
       .map((r) => ({

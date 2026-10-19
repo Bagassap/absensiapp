@@ -180,10 +180,6 @@ export function DataGuruTable({
   onEdit: (g: GuruRow) => void;
   onResetPassword?: (g: GuruRow) => void;
   isSuperAdmin?: boolean;
-  // Halaman cuma di-reset ke 0 kalau nilai ini berubah (mis. search query) —
-  // bukan tiap kali guruList di-refresh (mis. setelah simpan Edit/Reset
-  // Password), supaya admin tidak "dilempar" balik ke halaman 1 setelah
-  // berhasil menyimpan perubahan di guru pada halaman 2+.
   resetPageKey?: string | number;
 }) {
   const [page, setPage] = useState(0);

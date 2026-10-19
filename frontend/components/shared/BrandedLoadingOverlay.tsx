@@ -5,9 +5,6 @@ import { motion } from "framer-motion";
 
 const DOT_COLORS = ["#ffffff", "#00C853", "#ffffff"] as const;
 
-// Transisi bermerek penuh-layar setelah login berhasil (sebelum redirect) —
-// meniru pola BrandedLoadingOverlay di lmspplg, warnanya disesuaikan ke
-// brand hijau kita (#013920 dasar, #00C853 aksen glow) alih-alih biru.
 export function BrandedLoadingOverlay({
   greeting,
   message = "Menyiapkan halaman Anda...",

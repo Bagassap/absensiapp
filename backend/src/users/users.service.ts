@@ -30,8 +30,6 @@ export class UsersService {
     private readonly jwtService: JwtService,
   ) {}
 
-  // Resetting guru/admin accounts, including the super admin itself, stays
-  // super-admin-only.
   async resetPassword(
     admin: { loginId?: string | null },
     id: string,
@@ -128,8 +126,6 @@ export class UsersService {
     });
   }
 
-  // Nonaktifkan bukan hard-delete — akun dinonaktifkan (tidak bisa login
-  // lagi) tapi seluruh riwayat absensi guru tetap tersimpan.
   async deactivateGuru(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { guru: true } });
     if (!user || user.role !== Role.GURU || !user.guru) {
@@ -178,8 +174,6 @@ export class UsersService {
     }
   }
 
-  // Admin (Data Guru manager) mengganti foto profil seorang guru — beda dari
-  // AuthService.setFotoProfil yang dipakai guru mengganti fotonya sendiri.
   async setGuruFoto(userId: string, fotoUrl: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== Role.GURU) {
@@ -191,8 +185,6 @@ export class UsersService {
       data: { fotoProfil: fotoUrl },
     });
 
-    // Best-effort cleanup of the previous photo file — never block the
-    // response over a stale file staying on disk.
     if (user.fotoProfil && user.fotoProfil !== fotoUrl) {
       const oldPath = join(process.cwd(), user.fotoProfil);
       fs.unlink(oldPath, () => {});
@@ -241,8 +233,6 @@ export class UsersService {
   ) {
     const target = await this.prisma.user.findUnique({ where: { id: targetId } });
     if (!target) throw new NotFoundException('User tidak ditemukan');
-    // Blocks impersonating any admin account, which already covers the
-    // super admin — no separate check needed to protect it specifically.
     if (target.role === Role.ADMIN) {
       throw new ForbiddenException('Tidak dapat memantau akun admin');
     }

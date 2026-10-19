@@ -139,10 +139,6 @@ function RingkasanKehadiranPanel({ guruSudahAbsen, totalGuru, hadirPct, segments
 
 function UnduhLaporanPanel({ exportRange, guruRoster }: {
   exportRange: ReturnType<typeof useExportRange>;
-  // Nama prop dipertahankan "guruRoster" (bukan diganti nama) supaya
-  // pemanggil di bawah tidak perlu diubah — tapi isinya sekarang daftar
-  // khusus export (guru + admin, lihat exportGuruRoster di komponen induk),
-  // bukan guruRoster biasa yang dipakai buat statistik.
   guruRoster: GuruBasic[];
 }) {
   return (
@@ -273,11 +269,6 @@ export default function AdminAbsensiHarianPage() {
       .catch(() => {});
   }, []);
 
-  // Daftar khusus dropdown "Pilih Guru" di tombol unduh — beda dari
-  // guruRoster di atas (dari /api/users/guru, cuma role GURU & dibatasi ke
-  // 2 akun Data Guru Manager) karena banyak admin di sekolah ini JUGA
-  // ikut absen seperti guru biasa, jadi perlu bisa diunduh juga. Endpoint
-  // ini terbuka untuk semua admin, bukan cuma Data Guru Manager.
   useEffect(() => {
     fetch("/api/absensi-harian/export-guru-roster")
       .then((r) => r.json())
@@ -292,9 +283,6 @@ export default function AdminAbsensiHarianPage() {
   const rows = rekap?.rows ?? [];
   const kegiatanList = rekap?.kegiatan ?? [];
   const totalGuru = guruRoster.length;
-  // "ALFA" adalah baris sintetis dari backend (guru belum absen sama sekali)
-  // — bukan bukti guru ybs sudah absen, jadi harus disaring dulu di sini,
-  // kalau tidak setiap guru akan selalu terhitung "sudah absen".
   const guruSudahAbsenIds = new Set(rows.filter((r) => r.status !== "ALFA").map((r) => r.guruId));
   const guruSudahAbsen = guruSudahAbsenIds.size;
   const hadirPct = totalGuru > 0 ? Math.round((guruSudahAbsen / totalGuru) * 100) : 0;
@@ -316,12 +304,6 @@ export default function AdminAbsensiHarianPage() {
   }));
   const totalSlot = kegiatanList.reduce((s, k) => s + k.guruTotal, 0);
 
-  // Baris "Alfa" sintetis dari backend (lihat getRekapKegiatan) sudah
-  // mempertimbangkan aturan piket-vs-apel (guru yang tidak berjadwal piket
-  // hari itu tidak dianggap wajib absen Piket Harian, dst) — dipakai
-  // langsung sebagai sumber "siapa belum absen", bukan dihitung ulang dari
-  // seluruh guruRoster (yang dulunya salah: Piket Harian ikut menghitung
-  // SEMUA guru, padahal biasanya cuma belasan guru yang berjadwal piket).
   const laporanRendahProps = {
     kegiatanHariIni: kegiatanList.map((k) => ({ id: k.id, nama: k.nama, guruTotal: k.guruTotal, jumlahAbsen: k.jumlahAbsen })),
     alfaRows: rows.filter((r) => r.status === "ALFA"),
@@ -335,7 +317,6 @@ export default function AdminAbsensiHarianPage() {
 
   return (
     <>
-      {/* Desktop/tablet — semua fitur di satu halaman seperti sebelumnya. */}
       <div className="hidden space-y-5 p-1 lg:block">
         <div className="relative overflow-hidden rounded-2xl p-6"
           style={{ background: "#013920" }}>
@@ -357,10 +338,6 @@ export default function AdminAbsensiHarianPage() {
 
         <div className="mb-8 rounded-3xl border border-slate-100 bg-white p-6 shadow-lg dark:border-slate-700 dark:bg-slate-800">
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-8">
-            {/* Ditumpuk dengan "Unduh Laporan" di kolom yang sama — KegiatanCard
-                di sebelah kanan jadi lebih tinggi sejak ada seksi "Kegiatan
-                Berulang", jadi ada ruang kosong di bawah Ringkasan Kehadiran
-                kalau dibiarkan sendirian; card ini mengisinya. */}
             <div className="flex flex-col gap-5 lg:col-span-2 lg:gap-8">
               <div className="flex flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
                 <RingkasanKehadiranPanel
@@ -391,26 +368,11 @@ export default function AdminAbsensiHarianPage() {
               </div>
               <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-600 dark:bg-slate-700/50 sm:w-full sm:max-w-xs">
                 <CalendarDays size={14} className="shrink-0 text-slate-400" />
-                {/* Native date input tampilannya ikut locale browser/OS (bisa
-                    jadi MM/DD/YYYY), bukan locale halaman — jadi teksnya
-                    disembunyikan dan diganti label formatTgl (format
-                    Indonesia) yang menumpuk di atasnya; input aslinya tetap
-                    berfungsi penuh (klik/keyboard) untuk buka date picker. */}
                 <div className="relative w-full min-w-0">
                   <span className="pointer-events-none block truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
                     {tanggal.split("-").reverse().join("/")}
                   </span>
                   <input ref={tanggalInputRef} type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)}
-                    // Desktop Chrome/Edge cuma membuka date picker kalau klik
-                    // tepat di ikon kalender bawaan browser — karena input ini
-                    // dibuat opacity-0 & di-stretch penuh (supaya formatnya
-                    // konsisten Indonesia, bukan ikut locale OS), ikon bawaan
-                    // itu jadi tidak kelihatan/tidak ketebak posisinya, jadi
-                    // klik di mana saja pada area ini tidak membuka apa-apa.
-                    // Mobile tidak kena masalah ini karena tap di mana saja
-                    // pada input date langsung membuka date picker native OS.
-                    // showPicker() dipanggil manual supaya klik di mana saja
-                    // pada area ini tetap membuka date picker di desktop juga.
                     onClick={() => tanggalInputRef.current?.showPicker?.()}
                     className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
                 </div>
@@ -477,14 +439,6 @@ export default function AdminAbsensiHarianPage() {
         </div>
       </div>
 
-      {/* ── Mobile (lg:hidden) — versi ringkas admin, meniru header
-          "hero" milik guru, tapi terlalu banyak fitur admin (kelola
-          kegiatan, unduh laporan, kehadiran rendah) untuk muat di 1
-          halaman kecil, jadi dipindah ke halaman tersendiri lewat
-          "Menu Lainnya". Tabel guru-per-guru yang panjang diganti daftar
-          kegiatan — ketuk 1 kegiatan untuk buka halaman detailnya sendiri
-          (/kegiatan-hari-ini/[id]), bukan modal, supaya daftar guru per
-          kegiatan (bisa puluhan) tidak sesak di dalam sheet. */}
       <div className="relative isolate -m-4 lg:hidden" style={{ background: "#013920" }}>
         <div className="relative flex items-center justify-center px-4 pb-3 pt-4">
           <h1 className="text-base font-bold text-white">Absensi Kegiatan</h1>

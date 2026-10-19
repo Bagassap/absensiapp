@@ -42,7 +42,6 @@ const MUTED_ARGB = 'FF64748B';
 
 const UPLOADS_ROOT = join(process.cwd(), 'uploads');
 
-// "2 September 2026" — dipakai judul rentang mingguan/bulanan.
 function formatTanggalRingkas(tanggal: string): string {
   try {
     return new Date(`${tanggal}T00:00:00`).toLocaleDateString('id-ID', {
@@ -122,10 +121,6 @@ export class AbsensiHarianExcelService {
     return row;
   }
 
-  // Pita judul "Absensi Mingguan/Bulanan ..." + ringkasan Total Kegiatan/
-  // Kehadiran/Persentase di 2 baris paling atas worksheet rekap rentang —
-  // dipakai buildRange & buildGuruRange supaya keduanya konsisten dan
-  // langsung kelihatan tanpa perlu scroll ke tabel.
   private titleBand(ws: ExcelJS.Worksheet, colCount: number, title: string, subtitle: string, statsLine: string) {
     ws.mergeCells(1, 1, 1, colCount);
     const titleCell = ws.getCell(1, 1);
@@ -169,8 +164,6 @@ export class AbsensiHarianExcelService {
     ws.columns.forEach((col, i) => { if (col.key) colIndex[col.key] = i; });
 
     for (const r of rekap.rows) {
-      // Catatan tertulis admin diutamakan (sama seperti PDF) — "Terverifikasi"
-      // cuma fallback kalau diverifikasi TANPA catatan tertulis.
       const adminSuffix = r.verifiedByNama ? ` — ${r.verifiedByNama}` : '';
       const catatanText = r.catatan ? `${r.catatan}${adminSuffix}` : r.verified ? `Terverifikasi${adminSuffix}` : '-';
       const row = ws.addRow({
@@ -278,9 +271,6 @@ export class AbsensiHarianExcelService {
     ws.getRow(3).values = ['Tanggal', 'Kegiatan', 'Status', 'Jam Absen'];
     this.styleHeaderRow(ws.getRow(3));
 
-    // Pita pembatas tiap kali tanggalnya berganti — tabel ini mencakup
-    // banyak hari sekaligus (mingguan/bulanan), jadi tanpa pembatas baris2
-    // dari hari yang berbeda menyatu dan sulit dipisahkan secara sekilas.
     let lastTanggal: string | null = null;
     for (const r of rekap.rows) {
       if (r.tanggal !== lastTanggal) {

@@ -95,10 +95,6 @@ export function Topbar({ user, onMenuClick }: { user: UserPayload; onMenuClick: 
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // A 401 here means the session cookie is gone or no longer verifiable (expired,
-  // or signed under a JWT_SECRET that's since been rotated) — bounce to /login
-  // instead of leaving the badge/dropdown silently and permanently empty with
-  // nothing in the UI to explain why.
   function handleSessionExpired() {
     window.location.href = "/login";
   }

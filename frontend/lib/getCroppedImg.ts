@@ -1,7 +1,7 @@
 export type PixelCrop = { x: number; y: number; width: number; height: number };
 
-const MAX_OUTPUT_BYTES = 1024 * 1024; // 1MB
-const MAX_DIM = 1024; // plenty for a profile photo — server re-crops to 500x500 anyway
+const MAX_OUTPUT_BYTES = 1024 * 1024;
+const MAX_DIM = 1024;
 const QUALITY_STEPS = [0.92, 0.85, 0.78, 0.7, 0.6, 0.5, 0.4, 0.3];
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -24,12 +24,6 @@ function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
   });
 }
 
-// Converts react-easy-crop's croppedAreaPixels callback output into an
-// uploadable JPEG File — react-easy-crop only reports the crop rectangle,
-// the actual pixel extraction has to happen via canvas. The result is
-// auto-compressed (downscaled + quality steps) until it's at or under
-// MAX_OUTPUT_BYTES, so a multi-MB phone camera crop never gets uploaded
-// as-is.
 export async function getCroppedImg(imageSrc: string, crop: PixelCrop): Promise<File> {
   const image = await loadImage(imageSrc);
 
@@ -54,9 +48,6 @@ export async function getCroppedImg(imageSrc: string, crop: PixelCrop): Promise<
     blob = await canvasToBlob(canvas, QUALITY_STEPS[i]);
   }
 
-  // Still over 1MB even at the lowest quality step (very large/detailed
-  // crop) — shrink dimensions and retry once more at a moderate quality
-  // rather than accepting an oversized file.
   if (blob.size > MAX_OUTPUT_BYTES) {
     const shrink = Math.sqrt(MAX_OUTPUT_BYTES / blob.size);
     canvas.width = Math.max(1, Math.round(outW * shrink));

@@ -7,10 +7,6 @@ import { Avatar } from "@/components/shared/Avatar";
 import { avatarColor, parseLokasi } from "./shared";
 import type { AbsensiKegiatanRow } from "./types";
 
-// Mobile (<640px) hanya menampilkan kolom penting (avatar, Nama, Kegiatan, Jam,
-// Aksi) — kolom No./Lokasi/Foto/TTD disembunyikan (bukan cuma diperkecil)
-// karena 9 kolom penuh tidak muat di layar ~360-390px tanpa memaksa teks jadi
-// 0px lebar; detail lengkapnya tetap bisa dilihat lewat tombol "Lihat".
 const GRID_COLS_MOBILE = "grid-cols-[36px_2fr_1.4fr_44px_80px]";
 const GRID_COLS_DESKTOP = "sm:grid-cols-[24px_36px_2fr_1.6fr_0.9fr_1.2fr_44px_44px_88px]";
 const ROW_GRID = `grid ${GRID_COLS_MOBILE} ${GRID_COLS_DESKTOP}`;
@@ -28,8 +24,6 @@ type Props = {
   tablePageSize: number;
   setTablePageSize: (n: number) => void;
   onOpenDokumen: (row: AbsensiKegiatanRow) => void;
-  // Hapus absensi — khusus admin & superadmin (halaman ini sendiri sudah
-  // dibatasi Role.ADMIN, jadi tidak perlu guard tambahan di sisi UI).
   onDelete?: (row: AbsensiKegiatanRow) => void;
   deletingId?: string | null;
 };
@@ -130,9 +124,6 @@ export function AbsensiHarianTable({
                       {r.status === "IZIN" ? "Izin" : r.status === "ALFA" ? "Alfa" : "Hadir"}
                     </span>
                   </p>
-                  {/* Label pembeda "absen untuk piket yang mana" — kegiatan
-                      lain tidak butuh keterangan tambahan karena namanya
-                      sendiri (mis. "Rapat Bulanan") sudah cukup jelas. */}
                   {r.keterangan && (
                     <p title={r.keterangan} className="mt-0.5 truncate text-[11px] font-medium text-slate-400 dark:text-slate-500">
                       {r.keterangan}

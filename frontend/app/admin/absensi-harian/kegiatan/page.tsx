@@ -6,9 +6,6 @@ import { ChevronLeft } from "lucide-react";
 import { KegiatanCard } from "@/components/absensi-harian/KegiatanCard";
 import { todayJakarta } from "@/components/absensi-harian/shared";
 
-// Halaman tersendiri (bukan modal) — kelola kegiatan (tambah/edit/hapus,
-// termasuk kegiatan berulang) butuh ruang penuh untuk form-nya, beda
-// dengan 3 menu lain di "Menu Lainnya" yang cukup sebagai bottom-sheet.
 export default function KelolaKegiatanPage() {
   const router = useRouter();
   const [tanggal] = useState(() => todayJakarta());

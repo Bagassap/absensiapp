@@ -31,9 +31,6 @@ export class UpdateKegiatanDto {
   @IsOptional()
   nama?: string;
 
-  // Tanggal pelaksanaan boleh diedit admin lepas dari kapan kegiatan itu
-  // dibuat — mis. kegiatan tanggal 9 dibuat sambil admin sedang melihat
-  // tanggal 6/7.
   @IsString()
   @IsOptional()
   tanggal?: string;
@@ -91,7 +88,6 @@ export class CreateKegiatanRecurringDto {
   @IsNotEmpty()
   nama!: string;
 
-  // Bisa lebih dari 1 hari (atau ke-7 hari) sekaligus per aturan.
   @IsArray()
   @ArrayNotEmpty()
   @ArrayUnique()

@@ -6,12 +6,6 @@ import { Camera, Loader2, RotateCcw, AlertTriangle } from "lucide-react";
 
 const INSECURE_CONTEXT_MSG = "Akses kamera memerlukan koneksi aman. Silakan buka lewat domain https, jangan menggunakan alamat IP langsung.";
 
-// Kamera langsung (getUserMedia), BUKAN <input type="file" capture> — file
-// input dengan atribut capture cuma "saran" ke OS, sebagian browser/HP tetap
-// menampilkan opsi galeri di sampingnya. Absensi kegiatan harus benar-benar
-// foto live saat itu juga (bukti kehadiran), jadi galeri wajib tidak bisa
-// diakses sama sekali lewat jalur ini — satu-satunya cara menjamin itu di
-// web adalah mengambil frame langsung dari stream kamera sendiri.
 export function CameraCapture({ onCapture, disabled }: { onCapture: (file: File) => void; disabled?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -28,11 +22,6 @@ export function CameraCapture({ onCapture, disabled }: { onCapture: (file: File)
 
   useEffect(() => () => stopStream(), [stopStream]);
 
-  // <video> tetap selalu ter-mount di DOM (disembunyikan via CSS saat belum
-  // aktif) — kalau elemennya cuma dirender setelah `active` jadi true, ref
-  // ke video masih null persis di saat stream mau dipasang (assign
-  // srcObject terjadi SEBELUM re-render yang memunculkan elemennya), jadi
-  // stream gagal terpasang meski getUserMedia sendiri sukses.
   const startCamera = useCallback(async () => {
     setError(null);
     if (typeof window !== "undefined" && !window.isSecureContext) {
@@ -78,9 +67,6 @@ export function CameraCapture({ onCapture, disabled }: { onCapture: (file: File)
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d");
       if (!ctx) { setCapturing(false); return; }
-      // Cermin horizontal — biar hasil fotonya sama persis dengan yang
-      // dilihat guru di preview (preview juga di-mirror di bawah), bukan
-      // versi "kebalikan" yang terasa aneh.
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);

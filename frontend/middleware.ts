@@ -47,10 +47,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Derived from the verified session token's own payload, not the
-  // impersonation_token cookie's mere presence — that cookie can be stale
-  // (e.g. left over from before a JWT_SECRET rotation) without meaning the
-  // current session is actually an active impersonation.
   const impersonating = !!payload.impersonatedBy;
 
   if (pathname === "/lengkapi-foto-profil") {

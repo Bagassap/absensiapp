@@ -22,9 +22,6 @@ const INSECURE_CONTEXT_MSG = "Akses GPS memerlukan koneksi aman. Silakan buka le
 type Step = "SELFIE" | "FORM" | "DONE";
 type KehadiranStats = { totalKegiatanDiikuti: number; totalKegiatan: number };
 
-// Wizard absen kegiatan — dipakai bersama oleh guru (/guru/absensi-harian)
-// dan admin (/admin/absensi-saya), karena admin juga berstatus guru dan
-// perlu bisa mencatat kehadirannya sendiri untuk kegiatan yang sama.
 export function AbsensiSayaWizard() {
   const toast = useToast();
   const today = todayJakarta();
@@ -46,10 +43,6 @@ export function AbsensiSayaWizard() {
   const [ttd, setTtd] = useState<string | null>(null);
   const [status, setStatus] = useState<"HADIR" | "IZIN">("HADIR");
 
-  // State khusus menu mobile (lg:hidden) — bottom-sheet multi-step (tiru
-  // tampilan lmspplg's menu Absensi Siswa) terpisah dari step wizard
-  // desktop di atas, tapi mengisi field yang SAMA (fotoFile/lokasi/ttd/
-  // status/selectedId) sehingga submit-nya lewat handleSubmit() yang sama.
   const [mobileWizardOpen, setMobileWizardOpen] = useState(false);
   const [mobileStep, setMobileStep] = useState(0);
   const [mobileDirection, setMobileDirection] = useState(1);
@@ -77,7 +70,6 @@ export function AbsensiSayaWizard() {
         setStats({ totalKegiatanDiikuti: d.kehadiran.totalKegiatanDiikuti ?? 0, totalKegiatan: d.kehadiran.totalKegiatan ?? 0 });
       }
     } catch {
-      // Statistik bersifat pelengkap — kegagalan diam-diam, wizard absen tetap jalan
     }
   }, []);
 
@@ -93,16 +85,9 @@ export function AbsensiSayaWizard() {
     [kegiatanList],
   );
 
-  // Untuk 2 kartu tab "Belum Absen"/"Sudah Absen" di menu mobile — beda
-  // dengan kegiatanBisaAbsen (yang cuma menghitung window BUKA), "belum"
-  // di sini juga mencakup yang sudah TUTUP tapi kelewatan, supaya guru
-  // tetap bisa lihat riwayat kegiatan yang terlewat, bukan cuma yang aktif.
   const belumList = useMemo(() => kegiatanList.filter((k) => !k.sudahAbsen), [kegiatanList]);
   const sudahList = useMemo(() => kegiatanList.filter((k) => k.sudahAbsen), [kegiatanList]);
 
-  // Beda dengan "tidak ada kegiatan terbuka" (bisa berarti guru kelewatan
-  // absen) — kalau SEMUA kegiatan hari ini sudah diabsen, itu kabar baik,
-  // jadi tampilannya dibuat positif (centang biru), bukan ikon merah.
   const allSudahAbsen = kegiatanList.length > 0 && kegiatanBisaAbsen.length === 0
     && kegiatanList.every((k) => k.sudahAbsen);
 
@@ -489,16 +474,6 @@ export function AbsensiSayaWizard() {
       </div>
       </div>
 
-      {/* Selalu tampil terlepas dari step wizard (SELFIE/FORM) atau apakah
-          semua kegiatan hari ini sudah diabsen — sebelumnya catatan dari
-          admin cuma muncul di state "semua sudah absen", jadi kalau guru
-          masih punya kegiatan lain yang belum diabsen hari itu, catatan
-          untuk kegiatan yang SUDAH diverifikasi tidak pernah kelihatan sama
-          sekali di halaman ini (cuma masuk ke notifikasi).
-          Desktop-only (hidden di mobile) — di mobile, tap kartu kegiatan
-          yang sudah selesai membuka MobileDetailSheet yang menampilkan hal
-          yang sama (termasuk catatan), jadi kartu riwayat ini tidak perlu
-          diduplikasi di sana. */}
       {kegiatanList.some((k) => k.sudahAbsen) && (
         <div className="hidden rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 lg:block">
           <h2 className="text-base font-bold text-slate-800 dark:text-white">Riwayat Absensi Hari Ini</h2>
@@ -532,13 +507,6 @@ export function AbsensiSayaWizard() {
         </div>
       )}
 
-      {/* ── Menu mobile (lg:hidden) — tiru tampilan menu "Absensi Siswa"
-          lmspplg: header hijau full-bleed menyambung ke sheet rounded-t,
-          grid kartu 2 kolom (1 kartu per kegiatan, bukan cuma Datang/
-          Pulang seperti punya mereka karena kegiatan kita jumlahnya
-          dinamis) — tap kartu yang masih terbuka membuka wizard bottom-
-          sheet multi-step, tap kartu yang sudah selesai membuka detail
-          bottom-sheet berisi foto/ttd/lokasi/catatan. */}
       <div className="relative isolate -m-4 lg:hidden" style={{ background: "#013920" }}>
         <div className="relative flex items-center justify-center px-4 pb-3 pt-4">
           <h1 className="text-base font-bold text-white">Absensi Kegiatan</h1>
@@ -558,9 +526,6 @@ export function AbsensiSayaWizard() {
             </div>
           ) : (
             <>
-              {/* Card utama — kartu hero besar, jam jadi fokus visual utama
-                  (besar & mencolok, variant "hero" LiveClock) supaya
-                  terasa lebih "hidup"/emosional dibanding sekadar pil kecil. */}
               <div className="relative overflow-hidden rounded-[28px] px-5 py-7 text-center shadow-[0_18px_36px_-14px_rgba(0,0,0,0.45)]" style={{ background: "#013920" }}>
                 <div className="pointer-events-none absolute -right-12 -top-14 h-40 w-40 rounded-full bg-white/8" />
                 <div className="pointer-events-none absolute -bottom-12 -left-10 h-28 w-28 rounded-full bg-white/6" />
@@ -577,9 +542,6 @@ export function AbsensiSayaWizard() {
                 </div>
               </div>
 
-              {/* Tab pil tunggal (bukan 2 kartu terpisah) — highlight
-                  bergeser di antara "Belum Absen" / "Sudah Absen", meniru
-                  toggle "Playlist / Descriptions" pada referensi. */}
               <div className="relative rounded-full bg-white p-1 shadow-[0_2px_6px_rgba(0,0,0,0.06)] dark:bg-slate-800">
                 <motion.div className="absolute inset-y-1 rounded-full" style={{ width: "50%", background: absensiTab === "BELUM" ? "#EF4444" : "#00C853" }}
                   animate={{ x: absensiTab === "BELUM" ? "0%" : "100%" }} transition={{ type: "spring", damping: 28, stiffness: 300 }} />
@@ -597,9 +559,6 @@ export function AbsensiSayaWizard() {
                 </div>
               </div>
 
-              {/* Daftar vertikal (bukan carousel geser) — tiap baris kegiatan
-                  meniru baris "lesson" pada referensi: ikon bulat kiri
-                  (play/lock/check), judul + subjudul, ikon status kanan. */}
               <div className="rounded-3xl bg-white px-4 dark:bg-slate-800">
                 {(absensiTab === "BELUM" ? belumList : sudahList).length === 0 ? (
                   <p className="py-8 text-center text-xs font-medium text-slate-400">
@@ -615,9 +574,6 @@ export function AbsensiSayaWizard() {
                 )}
               </div>
 
-              {/* Button bar utama, bentuk pil penuh (stadium) — aksi cepat
-                  absen kegiatan yang paling dekat jamnya, meniru CTA
-                  "Purchase Only - $28" pada referensi. */}
               <motion.button type="button" whileTap={{ scale: 0.98 }}
                 onClick={() => kegiatanBisaAbsen[0] && openMobileWizard(kegiatanBisaAbsen[0].id)}
                 disabled={kegiatanBisaAbsen.length === 0}
@@ -656,12 +612,6 @@ export function AbsensiSayaWizard() {
   );
 }
 
-// Baris daftar vertikal per kegiatan — meniru baris "lesson" pada
-// referensi: ikon bulat kiri (play = bisa diabsen sekarang, centang = sudah
-// diabsen, gembok = belum bisa diakses karena belum mulai/sudah tutup),
-// judul + subjudul jam, ikon status di kanan. Baris "locked" tidak bisa
-// diklik sama sekali (bukan cuma redup) karena memang belum/tidak bisa
-// diabsen lagi.
 function KegiatanListRow({ k, onAction, onDetail }: {
   k: KegiatanUntukGuru;
   onAction: () => void;

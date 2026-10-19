@@ -12,7 +12,6 @@ export async function POST(request: Request) {
 
   if (!impersonationToken || !(await isValidJwt(impersonationToken))) {
     if (impersonationToken) {
-      // Stale/invalid cookie — not a real session to restore, just clear it.
       cookieStore.set("impersonation_token", "", { ...tokenCookieOptions(request), maxAge: 0 });
     }
     return NextResponse.json(

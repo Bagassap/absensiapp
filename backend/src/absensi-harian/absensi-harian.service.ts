@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType, Role } from '../../generated/prisma/client';
-import { jakartaParts, todayJakarta as todayStr, effectiveWeekdaysInRange, monthToDateRange, addDaysUTC, hariFor } from '../common/utils/jakarta-date.util';
+import { jakartaParts, todayJakarta as todayStr, effectiveWeekdaysInRange, monthToDateRange, addDaysUTC, hariFor, mondayOf, weekCycleIndex } from '../common/utils/jakarta-date.util';
 import { isValidGpsLokasi } from '../common/utils/gps.util';
 
 export type KegiatanWindow = 'BELUM_MULAI' | 'BUKA' | 'TUTUP';
@@ -15,28 +15,20 @@ export type KegiatanRow = {
   jamSelesai: number;
   keterangan: string | null;
   window: KegiatanWindow;
-  // Terisi kalau baris ini dibuat otomatis dari KegiatanRecurring — dipakai
-  // frontend untuk menampilkan catatan "perubahan jam berlaku untuk
-  // minggu-minggu berikutnya juga" saat admin mengedit instance ini.
   recurringSourceId: string | null;
 };
 
-// "Apel Pagi" dan "Piket Harian" dulunya hardcode (STANDING_KEGIATAN,
-// dibuat otomatis 00.00-23.59 tiap tanggal) — sekarang keduanya jadi
-// KegiatanRecurring biasa (lihat seed di bawah / dibuat admin lewat UI
-// "Kegiatan Berulang"), supaya jamnya bisa diatur sekali untuk seterusnya
-// alih-alih diedit manual tiap hari. `aliases` (lower-case) dipertahankan
-// untuk aturan piket-vs-apel di bawah, terlepas dari kegiatan itu berasal
-// dari recurring atau dibuat manual satu-kali.
 const APEL_ALIASES = ['apel pagi', 'apel'];
 const PIKET_ALIASES = ['piket harian', 'piket'];
 const isApelKegiatan = (nama: string) => APEL_ALIASES.includes(nama.trim().toLowerCase());
 const isPiketKegiatan = (nama: string) => PIKET_ALIASES.includes(nama.trim().toLowerCase());
 
-// Hari yang punya jadwal piket (lihat JadwalPiket, diisi dari
-// Jadwal_Piket_Tendik_2026-2027.xlsx) — Sabtu/Minggu tidak ada jadwal jadi
-// aturan "piket vs apel" di bawah tidak berlaku, kedua kegiatan tetap
-// tampil apa adanya kalau kebetulan ada baris untuk hari itu.
+const isDhuhaKegiatan = (nama: string) => nama.toLowerCase().includes('dhuha');
+
+const DHUHA_ANCHOR_KEY = 'dhuha_anchor';
+const DHUHA_DEFAULT_ANCHOR = '2026-10-19';
+const DHUHA_CYCLE_WEEKS = 4;
+
 const HARI_BERJADWAL_PIKET = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT'];
 
 export type AbsensiKegiatanRow = {
@@ -48,9 +40,6 @@ export type AbsensiKegiatanRow = {
   fotoProfil: string | null;
   kegiatanId: string;
   kegiatanNama: string;
-  // Cuma terisi untuk kegiatan "Piket Harian" pada guru yang memang
-  // berjadwal piket hari itu (lokasi tugasnya) — dipakai sebagai label
-  // pembeda di tabel admin, terutama saat filter "Semua" kegiatan digabung.
   keterangan: string | null;
   waktuAbsen: string;
   lokasi: string;
@@ -60,10 +49,6 @@ export type AbsensiKegiatanRow = {
   verifiedAt: string | null;
   verifiedByNama: string | null;
   catatan: string | null;
-  // 'ALFA' hanya dipakai untuk baris sintetis (guru yang belum absen sama
-  // sekali untuk kegiatan tsb) di getRekapKegiatan — bukan status yang
-  // pernah tersimpan di kolom `status` tabel absensi_kegiatan itu sendiri
-  // (kolomnya di DB cuma HADIR/IZIN, lihat StatusAbsensiKegiatan enum).
   status: 'HADIR' | 'IZIN' | 'ALFA';
 };
 
@@ -91,14 +76,9 @@ export class AbsensiHarianService {
     private readonly notificationService: NotificationService,
   ) {}
 
-  // ── Kegiatan CRUD (admin) ──────────────────────────────────────────────
 
   async listKegiatan(tanggal: string): Promise<KegiatanRow[]> {
     await this.ensureRecurringKegiatan(tanggal);
-    // Diurutkan berdasarkan urutan dibuat (bukan jam mulai) — supaya
-    // kegiatan yang admin tambahkan duluan tetap tampil di urutan pertama
-    // di kartu "Tambah Kegiatan", walau jam mulainya belakangan diedit jadi
-    // lebih pagi dari kegiatan lain.
     const rows = await this.prisma.kegiatan.findMany({
       where: { tanggal },
       orderBy: { createdAt: 'asc' },
@@ -161,12 +141,6 @@ export class AbsensiHarianService {
       },
     });
 
-    // Instance ini berasal dari kegiatan berulang — nama/jam/keterangan
-    // ikut disinkronkan ke aturannya supaya berlaku "untuk seterusnya"
-    // (semua instance yang akan dibuat ke depan), bukan cuma tanggal ini
-    // saja. `tanggal` sengaja tidak disinkronkan (aturan berulang berbasis
-    // hari, bukan tanggal spesifik), dan instance-instance minggu
-    // sebelumnya yang sudah pernah dibuat juga tidak diubah retroaktif.
     if (existing.recurringSourceId && (dto.nama !== undefined || dto.jamMulai !== undefined || dto.jamSelesai !== undefined || dto.keterangan !== undefined)) {
       await this.prisma.kegiatanRecurring.update({
         where: { id: existing.recurringSourceId },
@@ -189,7 +163,6 @@ export class AbsensiHarianService {
     return { message: `Kegiatan "${existing.nama}" dihapus` };
   }
 
-  // ── Kegiatan berulang mingguan (admin) ──────────────────────────────────
 
   async listKegiatanRecurring() {
     return this.prisma.kegiatanRecurring.findMany({ orderBy: { createdAt: 'asc' } });
@@ -230,12 +203,6 @@ export class AbsensiHarianService {
       },
     });
 
-    // Sinkronkan ke instance yang SUDAH dibuat dari aturan ini untuk hari
-    // ini/ke depan — tanpa ini, instance hari ini (sudah tergenerate lebih
-    // dulu saat halaman dibuka pagi ini, sebelum aturan diedit siang ini)
-    // tetap memakai nilai lama, jadi guru tidak pernah melihat perubahan
-    // yang admin kira sudah langsung berlaku. Instance tanggal LAMPAU
-    // sengaja tidak disentuh (riwayat kehadiran tidak diubah retroaktif).
     await this.prisma.kegiatan.updateMany({
       where: { recurringSourceId: id, tanggal: { gte: todayStr() } },
       data: {
@@ -249,10 +216,6 @@ export class AbsensiHarianService {
     return updated;
   }
 
-  // Cuma menghapus ATURANNYA (berhenti membuat instance baru ke depan) —
-  // instance Kegiatan yang sudah pernah dibuat dari aturan ini (termasuk
-  // riwayat absensinya) TIDAK ikut terhapus (recurringSourceId di-SetNull
-  // oleh FK, lihat migration), supaya riwayat kehadiran tetap utuh.
   async deleteKegiatanRecurring(id: string) {
     const existing = await this.prisma.kegiatanRecurring.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Kegiatan berulang tidak ditemukan');
@@ -260,13 +223,6 @@ export class AbsensiHarianService {
     return { message: `Kegiatan berulang "${existing.nama}" dihapus. Kegiatan yang sudah pernah dibuat dari aturan ini tetap ada.` };
   }
 
-  // Membuatkan instance Kegiatan untuk tiap aturan KegiatanRecurring yang
-  // mencakup hari ini (termasuk "Apel Pagi"/"Piket Harian", yang sekarang
-  // juga cuma aturan KegiatanRecurring biasa — lihat seed di
-  // scripts/seed-kegiatan-recurring.ts) — dipanggil di setiap jalur baca
-  // kegiatan (listKegiatan, kegiatan untuk guru, rekap admin, export).
-  // Dibungkus pg_advisory_xact_lock per tanggal supaya 2 request nyaris
-  // bersamaan tidak sama-sama lolos cek "belum ada" lalu berdua createMany.
   private async ensureRecurringKegiatan(tanggal: string) {
     const hari = hariFor(tanggal);
     const rules = await this.prisma.kegiatanRecurring.findMany({ where: { hari: { has: hari } } });
@@ -294,12 +250,68 @@ export class AbsensiHarianService {
     });
   }
 
-  // ── Guru: lihat kegiatan hari ini + status absensi sendiri ─────────────
 
-  // null = hari ini tidak berjadwal piket (Sabtu/Minggu) → tidak ada aturan
-  // piket-vs-apel. Kalau berjadwal tapi guru ybs tidak ada di jadwal hari
-  // itu, tetap return { lokasiTugas: null } (bukan null) supaya pemanggil
-  // bisa membedakan "tidak berlaku" dari "berlaku, tapi bukan piket".
+  private async getDhuhaAnchor(): Promise<string> {
+    const row = await this.prisma.pengaturan.findUnique({ where: { key: DHUHA_ANCHOR_KEY } });
+    return row?.value ?? DHUHA_DEFAULT_ANCHOR;
+  }
+
+  private async loadDhuhaSchedules(tanggalList: string[]): Promise<Map<string, Map<string, string>>> {
+    const result = new Map<string, Map<string, string>>();
+    const hariBerjadwal = tanggalList.filter((t) => HARI_BERJADWAL_PIKET.includes(hariFor(t)));
+    if (hariBerjadwal.length === 0) return result;
+    const anchor = await this.getDhuhaAnchor();
+    const slots = hariBerjadwal.map((tanggal) => ({
+      tanggal,
+      minggu: weekCycleIndex(anchor, tanggal, DHUHA_CYCLE_WEEKS) + 1,
+      hari: hariFor(tanggal),
+    }));
+    const rows = await this.prisma.jadwalDhuha.findMany({
+      where: { OR: slots.map((x) => ({ minggu: x.minggu, hari: x.hari })) },
+      orderBy: { createdAt: 'asc' },
+    });
+    for (const slot of slots) {
+      const perGuru = new Map<string, string[]>();
+      for (const r of rows) {
+        if (r.minggu !== slot.minggu || r.hari !== slot.hari) continue;
+        const arr = perGuru.get(r.guruId) ?? [];
+        arr.push(`${r.kelas} (${r.mapel})`);
+        perGuru.set(r.guruId, arr);
+      }
+      result.set(slot.tanggal, new Map([...perGuru].map(([guruId, items]) => [guruId, items.join('; ')])));
+    }
+    return result;
+  }
+
+  async getDhuhaInfo(tanggal: string) {
+    const anchor = await this.getDhuhaAnchor();
+    const minggu = weekCycleIndex(anchor, tanggal, DHUHA_CYCLE_WEEKS) + 1;
+    const rows = await this.prisma.jadwalDhuha.findMany({
+      where: { minggu },
+      include: { guru: { include: { user: { select: { nama: true } } } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    return {
+      anchor,
+      tanggal,
+      minggu,
+      jadwal: rows
+        .map((r) => ({ hari: r.hari, guruId: r.guruId, guruNama: r.guru.user?.nama ?? null, kelas: r.kelas, mapel: r.mapel }))
+        .sort((a, b) => HARI_BERJADWAL_PIKET.indexOf(a.hari) - HARI_BERJADWAL_PIKET.indexOf(b.hari)),
+    };
+  }
+
+  async setDhuhaAnchor(tanggal: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) throw new BadRequestException('Format tanggal harus YYYY-MM-DD');
+    const anchor = mondayOf(tanggal);
+    await this.prisma.pengaturan.upsert({
+      where: { key: DHUHA_ANCHOR_KEY },
+      create: { key: DHUHA_ANCHOR_KEY, value: anchor },
+      update: { value: anchor },
+    });
+    return { anchor };
+  }
+
   private async getPiketAssignment(guruId: string, tanggal: string): Promise<{ lokasiTugas: string } | null> {
     const hari = hariFor(tanggal);
     if (!HARI_BERJADWAL_PIKET.includes(hari)) return null;
@@ -307,12 +319,6 @@ export class AbsensiHarianService {
     return { lokasiTugas: row?.lokasiTugas ?? '' };
   }
 
-  // Dipakai rekap mingguan/bulanan (export) untuk menghitung "total kegiatan"
-  // yang benar per guru: kegiatan biasa (Upacara, Rapat, dst) berlaku buat
-  // semua orang, tapi dari pasangan Apel Pagi/Piket Harian cuma SATU yang
-  // relevan per hari per guru (sesuai JadwalPiket-nya) — tanpa ini, seminggu
-  // penuh akan salah dihitung 10 kegiatan (5 apel + 5 piket) padahal
-  // seharusnya cuma 5 (mis. 4 apel + 1 piket sesuai jadwalnya).
   private async buildRelevantKegiatanMap(
     kegiatanList: { id: string; nama: string; tanggal: string }[],
     guruIds: string[],
@@ -334,12 +340,20 @@ export class AbsensiHarianService {
       : [];
     const piketSet = new Set(piketRows.map((p) => `${p.hari}:${p.guruId}`));
 
+    const dhuhaTanggal = [...byTanggal].filter(([, list]) => list.some((k) => isDhuhaKegiatan(k.nama))).map(([tgl]) => tgl);
+    const dhuhaSchedules = dhuhaTanggal.length > 0 ? await this.loadDhuhaSchedules(dhuhaTanggal) : new Map<string, Map<string, string>>();
+
     const result = new Map<string, Set<string>>();
     for (const guruId of guruIds) {
       const relevant = new Set<string>();
-      for (const [tgl, list] of byTanggal) {
+      for (const [tgl, fullList] of byTanggal) {
+        const list = fullList.filter((k) => !isDhuhaKegiatan(k.nama));
         const others = list.filter((k) => !isApelKegiatan(k.nama) && !isPiketKegiatan(k.nama));
         others.forEach((k) => relevant.add(k.id));
+
+        if (dhuhaSchedules.get(tgl)?.has(guruId)) {
+          fullList.filter((k) => isDhuhaKegiatan(k.nama)).forEach((k) => relevant.add(k.id));
+        }
 
         const hari = hariFor(tgl);
         if (HARI_BERJADWAL_PIKET.includes(hari)) {
@@ -348,9 +362,6 @@ export class AbsensiHarianService {
             .filter((k) => (isPiketHari ? isPiketKegiatan(k.nama) : isApelKegiatan(k.nama)))
             .forEach((k) => relevant.add(k.id));
         } else {
-          // Sabtu/Minggu tidak seharusnya muncul di tanggalList (sudah
-          // difilter effectiveWeekdaysInRange) — fallback aman: hitung apa
-          // adanya kalau suatu saat ada baris kegiatan di hari itu juga.
           list.forEach((k) => relevant.add(k.id));
         }
       }
@@ -362,20 +373,19 @@ export class AbsensiHarianService {
   async getKegiatanUntukGuru(userId: string, tanggal: string) {
     await this.ensureRecurringKegiatan(tanggal);
     const guru = await this.prisma.guru.findUnique({ where: { userId } });
-    // Sama seperti listKegiatan (kartu admin) — urut berdasarkan kapan
-    // dibuat, bukan jam mulai, supaya urutannya konsisten dengan yang
-    // admin lihat.
     let kegiatanList = await this.prisma.kegiatan.findMany({
       where: { tanggal },
       orderBy: { createdAt: 'asc' },
     });
 
-    // Aturan piket-vs-apel (dari Jadwal_Piket_Tendik_2026-2027.xlsx): guru
-    // yang piket hari itu cuma bisa absen "Piket Harian" (dengan keterangan
-    // lokasi tugas personalnya), guru yang tidak piket cuma bisa absen
-    // "Apel Pagi". Kegiatan lain (Upacara, Rapat, dst) tidak kena aturan
-    // ini. Kalau hari itu tidak berjadwal piket (Sabtu/Minggu), tidak ada
-    // pembatasan sama sekali.
+    const dhuhaSchedule = kegiatanList.some((k) => isDhuhaKegiatan(k.nama))
+      ? ((await this.loadDhuhaSchedules([tanggal])).get(tanggal) ?? new Map<string, string>())
+      : new Map<string, string>();
+    const jadwalDhuhaGuru = guru ? dhuhaSchedule.get(guru.id) : undefined;
+    kegiatanList = kegiatanList
+      .filter((k) => !isDhuhaKegiatan(k.nama) || jadwalDhuhaGuru !== undefined)
+      .map((k) => (isDhuhaKegiatan(k.nama) ? { ...k, keterangan: `Jadwal: ${jadwalDhuhaGuru}` } : k));
+
     if (guru) {
       const piket = await this.getPiketAssignment(guru.id, tanggal);
       if (piket) {
@@ -412,9 +422,6 @@ export class AbsensiHarianService {
         waktuAbsen: sub?.waktuAbsen ?? null,
         catatan: sub?.catatan ?? null,
         status: sub?.status ?? null,
-        // Bukti absen milik guru sendiri (dipakai modal detail di menu
-        // mobile) — aman ditampilkan ke diri sendiri, beda dengan data
-        // guru lain yang hanya boleh dilihat admin.
         foto: sub?.foto ?? null,
         lokasi: sub?.lokasi ?? null,
         ttd: sub?.ttd ?? null,
@@ -430,7 +437,6 @@ export class AbsensiHarianService {
     return { tanggal: tgl, kegiatan };
   }
 
-  // ── Guru: submit absensi untuk 1 kegiatan ───────────────────────────────
 
   async absenKegiatan(
     userId: string,
@@ -446,10 +452,13 @@ export class AbsensiHarianService {
       throw new ForbiddenException('Kegiatan ini bukan untuk hari ini');
     }
 
-    // Tegakkan aturan piket-vs-apel di server juga (bukan cuma menyaring
-    // daftar di getKegiatanUntukGuru) supaya tidak bisa dilewati dengan
-    // memanggil endpoint ini langsung dengan kegiatanId yang seharusnya
-    // tidak tersedia untuk guru ybs hari itu.
+    if (isDhuhaKegiatan(kegiatan.nama)) {
+      const dhuhaSchedule = (await this.loadDhuhaSchedules([kegiatan.tanggal])).get(kegiatan.tanggal);
+      if (!dhuhaSchedule?.has(guru.id)) {
+        throw new ForbiddenException('Anda tidak terjadwal shalat dhuha hari ini');
+      }
+    }
+
     const piket = await this.getPiketAssignment(guru.id, kegiatan.tanggal);
     if (piket) {
       if (piket.lokasiTugas && isApelKegiatan(kegiatan.nama)) {
@@ -493,7 +502,6 @@ export class AbsensiHarianService {
     });
   }
 
-  // ── Admin: rekap 1 tanggal ───────────────────────────────────────────────
 
   async getRekapKegiatan(tanggal: string) {
     await this.ensureRecurringKegiatan(tanggal);
@@ -510,32 +518,26 @@ export class AbsensiHarianService {
       orderBy: { waktuAbsen: 'asc' },
     });
 
-    // Peta guruId -> lokasiTugas piket hari ini (kalau hari ini berjadwal
-    // piket) — dipakai untuk (a) tidak menampilkan Apel Pagi DAN Piket
-    // Harian sekaligus untuk guru yang sama (guru piket cuma "hadir" lewat
-    // Piket Harian, guru non-piket cuma lewat Apel Pagi) dan (b) mengisi
-    // `keterangan` piket. Sama seperti aturan di getKegiatanUntukGuru, kalau
-    // hari ini tidak berjadwal piket (Sabtu/Minggu) tidak ada pengecualian
-    // sama sekali — peta dibiarkan kosong.
     const hari = hariFor(tanggal);
     const piketMap = new Map<string, string>();
     if (HARI_BERJADWAL_PIKET.includes(hari)) {
       const jadwalHariIni = await this.prisma.jadwalPiket.findMany({ where: { hari } });
       for (const j of jadwalHariIni) piketMap.set(j.guruId, j.lokasiTugas);
     }
-    const keteranganFor = (guruId: string, kegiatanNama: string): string | null =>
-      isPiketKegiatan(kegiatanNama) && piketMap.has(guruId) ? `Piket di ${piketMap.get(guruId)}` : null;
+    const dhuhaSchedule = kegiatanList.some((k) => isDhuhaKegiatan(k.nama))
+      ? ((await this.loadDhuhaSchedules([tanggal])).get(tanggal) ?? new Map<string, string>())
+      : new Map<string, string>();
+    const keteranganFor = (guruId: string, kegiatanNama: string): string | null => {
+      if (isDhuhaKegiatan(kegiatanNama)) {
+        const jadwal = dhuhaSchedule.get(guruId);
+        return jadwal ? `Jadwal: ${jadwal}` : null;
+      }
+      return isPiketKegiatan(kegiatanNama) && piketMap.has(guruId) ? `Piket di ${piketMap.get(guruId)}` : null;
+    };
 
-    // Jumlah guru aktif — dipakai sebagai basis "guruTotal" per kegiatan di
-    // bawah (hanya guru aktif, konsisten dengan baris Alfa sintetis yang
-    // juga cuma dibuat untuk guru aktif, lihat `guruAktif` di bawah).
     const totalGuruAktif = await this.prisma.guru.count({ where: { user: { isActive: true } } });
-    // "guruTotal" per kegiatan HARUS mengikuti aturan piket-vs-apel yang
-    // sama dengan baris Alfa di bawah — kalau tidak, badge "X/Y guru absen"
-    // dan panel "Belum Absen" di admin akan selalu memakai Y = SEMUA guru
-    // (mis. 78), padahal Piket Harian cuma relevan buat guru yang memang
-    // berjadwal piket hari itu (biasanya belasan orang saja, bukan semua).
     const guruTotalFor = (kegiatanNama: string): number => {
+      if (isDhuhaKegiatan(kegiatanNama)) return dhuhaSchedule.size;
       if (!HARI_BERJADWAL_PIKET.includes(hari)) return totalGuruAktif;
       if (isPiketKegiatan(kegiatanNama)) return piketMap.size;
       if (isApelKegiatan(kegiatanNama)) return totalGuruAktif - piketMap.size;
@@ -581,12 +583,6 @@ export class AbsensiHarianService {
       };
     });
 
-    // Baris "Alfa" sintetis — supaya tabel menampilkan SEMUA guru per
-    // kegiatan (bukan cuma yang sudah absen), bukan dari tabel
-    // absensi_kegiatan (guru ybs memang belum pernah submit untuk kegiatan
-    // ini). id-nya dibuat dengan prefix "alfa-" (bukan cuid asli) supaya
-    // gampang dibedakan dan tidak bisa disalahartikan sebagai id record
-    // sungguhan (mis. dikirim ke endpoint hapus/verifikasi).
     const guruAktif = await this.prisma.guru.findMany({
       where: { user: { isActive: true } },
       include: { user: { select: { nama: true, fotoProfil: true, loginId: true } } },
@@ -595,10 +591,7 @@ export class AbsensiHarianService {
       const sudahAbsenIds = new Set(absensi.filter((a) => a.kegiatanId === k.id).map((a) => a.guruId));
       for (const g of guruAktif) {
         if (sudahAbsenIds.has(g.id)) continue;
-        // Aturan piket-vs-apel — guru piket cuma relevan di "Piket Harian",
-        // guru non-piket cuma relevan di "Apel Pagi", supaya guru yang sama
-        // tidak muncul dobel (Alfa di Apel Pagi SEKALIGUS Alfa di Piket
-        // Harian) waktu filter "Semua" kegiatan digabung jadi satu tabel.
+        if (isDhuhaKegiatan(k.nama) && !dhuhaSchedule.has(g.id)) continue;
         if (HARI_BERJADWAL_PIKET.includes(hari)) {
           const isPiketGuru = piketMap.has(g.id);
           if (isApelKegiatan(k.nama) && isPiketGuru) continue;
@@ -630,11 +623,7 @@ export class AbsensiHarianService {
     return { tanggal, kegiatan, rows };
   }
 
-  // ── Admin: verifikasi absensi ────────────────────────────────────────────
 
-  // Toggle, bukan set-only — admin bisa membatalkan verifikasi kalau salah
-  // klik. verifiedAt/verifiedById dikosongkan lagi saat dibatalkan supaya
-  // konsisten dengan verified=false (bukan menyisakan jejak verifikasi lama).
   async toggleVerifikasi(id: string, adminUserId: string, catatan?: string) {
     const row = await this.prisma.absensiKegiatan.findUnique({
       where: { id },
@@ -655,9 +644,6 @@ export class AbsensiHarianService {
       },
     });
 
-    // Catatan dari ketenagaan itu informasi baru buat guru ybs — kirim
-    // notifikasi hanya kalau memang ada isinya (bukan tiap kali verifikasi
-    // polos tanpa catatan).
     if (verified && trimmedCatatan) {
       await this.notificationService.create({
         userId: row.guru.userId,
@@ -676,9 +662,6 @@ export class AbsensiHarianService {
     };
   }
 
-  // Hapus 1 baris absensi kegiatan (koreksi data oleh admin/superadmin) —
-  // guru yang bersangkutan jadi kembali berstatus belum absen untuk
-  // kegiatan itu dan bisa mengisi ulang selama jendela waktunya masih buka.
   async deleteAbsensi(id: string) {
     const row = await this.prisma.absensiKegiatan.findUnique({
       where: { id },
@@ -689,16 +672,12 @@ export class AbsensiHarianService {
     return { message: `Absensi "${row.guru.user.nama}" untuk kegiatan "${row.kegiatan.nama}" dihapus` };
   }
 
-  // ── Reminder ─────────────────────────────────────────────────────────────
 
   async kirimPengingatBelumAbsen(kegiatanId: string) {
     const kegiatan = await this.prisma.kegiatan.findUnique({ where: { id: kegiatanId } });
     if (!kegiatan) throw new NotFoundException('Kegiatan tidak ditemukan');
 
     const guruList = await this.prisma.guru.findMany({ where: { user: { isActive: true } }, select: { id: true, userId: true } });
-    // Aturan piket-vs-apel sama seperti getRekapKegiatan — kalau tidak
-    // disaring, guru yang tidak berjadwal piket hari ini ikut kena
-    // pengingat "belum absen Piket Harian" padahal memang tidak wajib.
     const relevantMap = await this.buildRelevantKegiatanMap(
       [{ id: kegiatan.id, nama: kegiatan.nama, tanggal: kegiatan.tanggal }],
       guruList.map((g) => g.id),
@@ -724,7 +703,6 @@ export class AbsensiHarianService {
     return { count: belumAbsenUserIds.length };
   }
 
-  // ── Laporan rendah kehadiran ─────────────────────────────────────────────
 
   async getLaporanRendahKehadiran(periode: 'mingguan' | 'bulanan') {
     const end = todayStr();
@@ -740,27 +718,32 @@ export class AbsensiHarianService {
       include: { user: { select: { nama: true, fotoProfil: true } } },
       orderBy: { user: { nama: 'asc' } },
     });
+    const relevantMap = await this.buildRelevantKegiatanMap(kegiatanList, guruList.map((g) => g.id));
 
     const absensi = totalKegiatan > 0
       ? await this.prisma.absensiKegiatan.findMany({
           where: { kegiatanId: { in: kegiatanList.map((k) => k.id) } },
-          select: { guruId: true },
+          select: { guruId: true, kegiatanId: true },
         })
       : [];
     const countByGuru = new Map<string, number>();
-    for (const a of absensi) countByGuru.set(a.guruId, (countByGuru.get(a.guruId) ?? 0) + 1);
+    for (const a of absensi) {
+      if (!relevantMap.get(a.guruId)?.has(a.kegiatanId)) continue;
+      countByGuru.set(a.guruId, (countByGuru.get(a.guruId) ?? 0) + 1);
+    }
 
     const guru = guruList
       .map((g) => {
+        const totalGuru = relevantMap.get(g.id)?.size ?? 0;
         const hadir = countByGuru.get(g.id) ?? 0;
-        const tidakHadir = totalKegiatan - hadir;
-        const persentaseKehadiran = totalKegiatan > 0 ? Math.round((hadir / totalKegiatan) * 1000) / 10 : 0;
+        const tidakHadir = totalGuru - hadir;
+        const persentaseKehadiran = totalGuru > 0 ? Math.round((hadir / totalGuru) * 1000) / 10 : 0;
         return {
           guruId: g.id,
           nama: g.user?.nama ?? null,
           nip: g.nip,
           fotoProfil: g.user?.fotoProfil ?? null,
-          summary: { hadir, totalKegiatan, tidakHadir, persentaseKehadiran },
+          summary: { hadir, totalKegiatan: totalGuru, tidakHadir, persentaseKehadiran },
         };
       })
       .filter((r) => r.summary.tidakHadir > 0)
@@ -769,17 +752,7 @@ export class AbsensiHarianService {
     return { periode, tanggalMulai: start, tanggalSelesai: end, totalKegiatan, guru };
   }
 
-  // ── Export helpers ───────────────────────────────────────────────────────
 
-  // Daftar guru khusus buat dropdown "Pilih Guru" di tombol unduh PDF/Excel
-  // per-guru — beda dari UsersService.findGuruList() (dipakai halaman Data
-  // Guru) yang cuma role GURU, karena banyak admin di sekolah ini JUGA
-  // punya akun Guru (ikut absen Apel Pagi/Piket Harian seperti guru biasa,
-  // lihat rekap harian) sehingga perlu bisa diunduh juga. Sengaja dibuat
-  // endpoint read-only terpisah (bukan ikut melebarkan findGuruList) supaya
-  // akun admin tidak ikut muncul di tabel kelola Data Guru yang punya
-  // tombol nonaktifkan — risiko admin tidak sengaja menonaktifkan sesama
-  // admin lewat halaman yang tidak didesain untuk itu.
   async getExportGuruRoster() {
     const users = await this.prisma.user.findMany({
       where: { role: { in: [Role.GURU, Role.ADMIN] }, guru: { isNot: null } },
@@ -864,10 +837,6 @@ export class AbsensiHarianService {
     const { start, end } = this.resolveRange(mode, opts.tanggalMulai, opts.tanggalSelesai, opts.bulan, opts.tahun);
     const tanggalList = effectiveWeekdaysInRange(start, end);
 
-    // Pastikan kegiatan berulang (Apel Pagi/Piket Harian/dst) sudah ada
-    // untuk tiap tanggal di rentang ini sebelum dihitung — tanpa ini,
-    // tanggal lampau yang belum pernah dibuka siapa pun bisa kehilangan
-    // instance-nya dan bikin total kegiatan under-count.
     if (tanggalList.length > 0) {
       await Promise.all(tanggalList.map((tgl) => this.ensureRecurringKegiatan(tgl)));
     }
@@ -886,15 +855,6 @@ export class AbsensiHarianService {
         })
       : [];
 
-    // Baris per-submission (dipakai export PDF landscape — satu baris =
-    // satu kali absen, lengkap dengan tanggal, status, foto, catatan) —
-    // dibangun dari query yang sama di atas (bukan query baru) supaya tidak
-    // dobel round-trip ke DB. Diurutkan tanggal lalu jam supaya terbaca
-    // kronologis di laporan. "Alfa" sengaja TIDAK disertakan di sini (beda
-    // dari tabel admin harian) — kalau ikut disertakan, laporan rentang
-    // panjang (terutama bulanan) bisa membengkak jadi ribuan baris kosong
-    // untuk tiap guru×kegiatan yang tidak diikuti, padahal ringkasan
-    // persentase di atas sudah mewakili info itu.
     const guruMap = new Map(guruList.map((g) => [g.id, g]));
     const kegiatanMap = new Map(kegiatanList.map((k) => [k.id, k]));
     const rows = absensi
@@ -941,10 +901,6 @@ export class AbsensiHarianService {
       };
     });
 
-    // Kegiatan "biasa" (non-apel/piket) berlaku sama buat semua guru, dan
-    // dari pasangan apel/piket tiap hari kerja selalu tepat 1 yang relevan
-    // per guru — jadi totalKegiatan per guru itu konstan sepanjang periode
-    // ini, dipakai sebagai angka ringkasan laporan (bukan rata-rata).
     const totalKegiatanPerGuru = guru[0]?.totalKegiatan
       ?? kegiatanList.filter((k) => !isApelKegiatan(k.nama) && !isPiketKegiatan(k.nama)).length + tanggalList.length;
     const totalHadirKeseluruhan = guru.reduce((sum, g) => sum + g.hadir, 0);
@@ -982,9 +938,6 @@ export class AbsensiHarianService {
     const kegiatanListAll = tanggalList.length > 0
       ? await this.prisma.kegiatan.findMany({ where: { tanggal: { in: tanggalList } }, orderBy: [{ tanggal: 'asc' }, { jamMulai: 'asc' }] })
       : [];
-    // Cuma satu dari Apel Pagi/Piket Harian per hari yang relevan buat guru
-    // ini (sesuai JadwalPiket-nya) — yang tidak relevan disingkirkan dari
-    // daftar supaya tidak muncul sebagai "Tidak Hadir" yang menyesatkan.
     const relevantMap = await this.buildRelevantKegiatanMap(kegiatanListAll, [guruId]);
     const relevant = relevantMap.get(guruId) ?? new Set<string>();
     const kegiatanList = kegiatanListAll.filter((k) => relevant.has(k.id));

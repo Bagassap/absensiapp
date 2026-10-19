@@ -33,17 +33,6 @@ export function LengkapiFotoProfilForm() {
     setCroppedAreaPixels(areaPixels);
   }, []);
 
-  // Self-heals a stale session cookie: the gate that sends a user here is
-  // baked into their JWT at login time, so a device that's been logged in
-  // since before a photo was uploaded (elsewhere, or in an earlier session
-  // on the same device) keeps landing here even though the photo already
-  // exists in the DB — the middleware only ever reads the JWT's own claims,
-  // never the DB, so navigating to another page alone would just bounce
-  // back here with the same stale claim. Re-check the live account state on
-  // mount and, if a photo is already on file, refresh the session cookie
-  // (via /api/auth/refresh, which re-signs the JWT from current DB state)
-  // before redirecting — otherwise the redirect target's middleware check
-  // would still see the old "no photo" claim and send the user right back.
   useEffect(() => {
     let cancelled = false;
     fetch("/api/auth/me", { cache: "no-store" })
@@ -68,10 +57,6 @@ export function LengkapiFotoProfilForm() {
       setError("Format file harus JPG, PNG, atau WEBP.");
       return;
     }
-    // Sengaja tanpa batas ukuran di sini — foto asli dari galeri HP modern
-    // (kamera 48MP+, HDR, dst.) bisa belasan MB, tapi getCroppedImg() di
-    // bawah selalu mengompresnya ke ≤1MB sebelum diunggah, jadi tidak perlu
-    // ditolak lebih dulu di sini.
     setError(null);
     setCrop({ x: 0, y: 0 });
     setZoom(1);

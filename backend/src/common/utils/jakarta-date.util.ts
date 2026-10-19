@@ -1,9 +1,3 @@
-// The server process runs in UTC (not WIB). `new Date().toISOString()` and
-// plain Date getters (getDay/getDate/...) all read the process's system
-// timezone, so anything built from them silently reports yesterday's date
-// during the ~7h/day window where WIB has already crossed into a new day
-// but UTC hasn't (UTC 17:00-23:59 = WIB 00:00-06:59). Every "what is today"
-// computation in the backend must go through these helpers instead.
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
@@ -38,10 +32,6 @@ export function todayJakarta(): string {
   return jakartaParts().date;
 }
 
-// Monday-Friday of the current Jakarta week, as yyyy-mm-dd strings. Anchors
-// on a UTC-midnight Date built from the already-resolved Jakarta calendar
-// date, so the day-of-week/date arithmetic below can't be skewed by the
-// host's own timezone again.
 export function weekDatesJakarta(): string[] {
   const { year, month, day, dayOfWeek } = jakartaParts();
   const anchor = new Date(Date.UTC(year, month - 1, day));
@@ -59,10 +49,6 @@ function parseIsoDateUTC(dateStr: string): Date {
   return new Date(Date.UTC(y, m - 1, d));
 }
 
-// "Hari efektif" for a recap = school weekdays only (Senin-Jumat) — Sabtu-Minggu
-// never has an absen window at all (see currentWindow() in
-// absensi-harian.service.ts), so they're excluded even if the raw range
-// happens to span a weekend. Inclusive of both start and end.
 export function effectiveWeekdaysInRange(startStr: string, endStr: string): string[] {
   const start = parseIsoDateUTC(startStr);
   const end = parseIsoDateUTC(endStr);
@@ -76,15 +62,11 @@ export function effectiveWeekdaysInRange(startStr: string, endStr: string): stri
   return days;
 }
 
-// First/last calendar day of a given month (1-12), as yyyy-mm-dd strings.
 export function monthToDateRange(bulan: number, tahun: number): { start: string; end: string } {
   const lastDay = new Date(Date.UTC(tahun, bulan, 0)).getUTCDate();
   return { start: `${tahun}-${pad2(bulan)}-01`, end: `${tahun}-${pad2(bulan)}-${pad2(lastDay)}` };
 }
 
-// `dateStr` shifted by `deltaDays` (negative to go back), as a yyyy-mm-dd
-// string. UTC-anchored like the helpers above so it can't be skewed by the
-// host's own timezone.
 export function addDaysUTC(dateStr: string, deltaDays: number): string {
   const d = parseIsoDateUTC(dateStr);
   d.setUTCDate(d.getUTCDate() + deltaDays);
@@ -93,9 +75,19 @@ export function addDaysUTC(dateStr: string, deltaDays: number): string {
 
 const HARI_NAMES = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
 
-// Indonesian day name for a yyyy-mm-dd string (UTC-anchored, same convention
-// as the other helpers here) — used to look up JadwalPiket.
 export function hariFor(dateStr: string): string {
   const dow = parseIsoDateUTC(dateStr).getUTCDay();
   return HARI_NAMES[dow];
+}
+
+export function mondayOf(dateStr: string): string {
+  const dow = parseIsoDateUTC(dateStr).getUTCDay();
+  return addDaysUTC(dateStr, -((dow + 6) % 7));
+}
+
+export function weekCycleIndex(anchorDateStr: string, dateStr: string, cycleLength: number): number {
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const diff = parseIsoDateUTC(mondayOf(dateStr)).getTime() - parseIsoDateUTC(mondayOf(anchorDateStr)).getTime();
+  const weeks = Math.round(diff / msPerWeek);
+  return ((weeks % cycleLength) + cycleLength) % cycleLength;
 }

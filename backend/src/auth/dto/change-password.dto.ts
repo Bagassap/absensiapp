@@ -14,9 +14,6 @@ export class ChangePasswordDto {
   @IsNotEmpty({ message: 'Konfirmasi password tidak boleh kosong' })
   confirmPassword: string;
 
-  // Identity verification for a FORCED password change (mustChangePassword),
-  // required to stop someone who only knows a colleague's login ID from
-  // locking the real owner out — see AuthService.changePassword.
   @IsString()
   @IsOptional()
   namaKonfirmasi?: string;

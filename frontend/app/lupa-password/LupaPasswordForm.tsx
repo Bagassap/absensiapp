@@ -45,9 +45,6 @@ export function LupaPasswordForm() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        // 409 = a request for this student is already pending — this isn't a
-        // validation error to fix and resubmit, it's a "you already did this"
-        // state, so it gets its own screen instead of an inline error.
         if (res.status === 409) {
           setAlreadyPending(true);
           setLoading(false);

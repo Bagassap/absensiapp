@@ -4,9 +4,6 @@ import { useMemo, useState } from "react";
 import { weekRangeFor } from "./shared";
 import type { ExportRange, ExportRangeMode } from "./shared";
 
-// Shared by admin/guru so the range-mode toggle and the download buttons —
-// rendered in different spots of the filter card grid — can stay in sync
-// without either page owning its own copy of this state.
 export function useExportRange(tanggal: string) {
   const [rangeMode, setRangeMode] = useState<ExportRangeMode>("harian");
   const [weekAnchor, setWeekAnchor] = useState(tanggal);

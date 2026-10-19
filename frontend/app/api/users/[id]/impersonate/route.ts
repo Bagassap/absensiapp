@@ -25,8 +25,6 @@ export async function POST(
         { status: 400 },
       );
     }
-    // Stale cookie (e.g. left over from a JWT_SECRET rotation, or an
-    // interrupted stop-impersonate) — not an active session, clear it.
     cookieStore.set("impersonation_token", "", { ...tokenCookieOptions(request), maxAge: 0 });
   }
 

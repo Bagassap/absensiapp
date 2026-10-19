@@ -20,12 +20,6 @@ const STATUS_CFG = {
   ALFA: { label: "Alfa", clr: "#94A3B8" },
 } as const;
 
-// Halaman tersendiri (bukan bottom-sheet) untuk detail 1 kegiatan — daftar
-// guru per kegiatan bisa puluhan baris, jadi butuh ruang penuh, bukan
-// sheet kecil. Baris guru sengaja dibuat ringkas (nama, terverifikasi atau
-// tidak, jam, tombol Aksi) — detail lain (foto/lokasi/ttd/catatan) dan aksi
-// (verifikasi/hapus) dipindah ke action-sheet "Aksi" ala mobile native app,
-// supaya daftarnya tidak sesak seperti tabel desktop.
 export default function KegiatanHariIniDetailPage() {
   const params = useParams<{ id: string }>();
   const kegiatanId = params.id;

@@ -9,16 +9,8 @@ import { avatarColor, CARD_GRADIENTS } from "./shared";
 
 export type GuruRosterItem = { guruId: string; nama: string; npy: string | null; fotoProfil: string | null };
 export type KegiatanRingkas = { id: string; nama: string; guruTotal: number; jumlahAbsen: number };
-// Baris "Alfa" sintetis dari backend (lihat getRekapKegiatan) — sudah
-// mempertimbangkan aturan piket-vs-apel (guru yang tidak berjadwal piket
-// hari itu TIDAK dianggap wajib absen Piket Harian, dst), jadi dipakai
-// langsung sebagai sumber data "siapa saja yang belum absen" alih-alih
-// menghitung ulang dari seluruh roster guru di komponen ini.
 export type AlfaRow = { guruId: string; kegiatanId: string; nama: string | null; npy: string | null; fotoProfil: string | null; status: string };
 
-// Modal "persegi panjang ke samping" (max-w-3xl, bukan kotak) meniru pola
-// GuruListModal di dashboard admin — pencarian + daftar vertikal + paginasi
-// 10/20/Semua.
 function DetailModal({
   kegiatan, belumList, color, onClose,
 }: { kegiatan: KegiatanRingkas; belumList: GuruRosterItem[]; color: string; onClose: () => void }) {
@@ -118,9 +110,6 @@ function DetailModal({
   );
 }
 
-// Baris trigger tipis per kegiatan hari ini ("Belum Absen — Apel Pagi",
-// "Belum Absen — Piket Harian", dst kalau lebih dari satu kegiatan) — klik
-// buka DetailModal berisi daftar guru yang belum absen kegiatan tsb.
 export function BelumAbsenKegiatanPanel({
   kegiatanList, rows,
 }: {
