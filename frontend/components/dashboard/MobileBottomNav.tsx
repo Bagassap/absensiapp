@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
@@ -20,10 +21,11 @@ const NAV: Record<string, NavItem[]> = {
     { key: "absensi-harian", label: "Kegiatan", icon: CalendarCheck2, href: "/admin/absensi-harian" },
     { key: "absensi-saya", label: "Absen Saya", icon: UserCheck, href: "/admin/absensi-saya" },
     { key: "data-guru", label: "Guru", icon: Users, href: "/admin/data-guru" },
+    { key: "notifikasi", label: "Notifikasi", icon: Bell, href: "/admin/notifikasi" },
   ],
   GURU: [
     { key: "absensi-harian", label: "Absensi", icon: Home, href: "/guru/absensi-harian" },
-    { key: "notifikasi", label: "Notifikasi", icon: Bell, event: "app:open-notif" },
+    { key: "notifikasi", label: "Notifikasi", icon: Bell, href: "/guru/notifikasi" },
     { key: "profil", label: "Profil", icon: UserCircle, event: "app:open-profil" },
   ],
 };
@@ -31,6 +33,25 @@ const NAV: Record<string, NavItem[]> = {
 export function MobileBottomNav({ user }: { user: UserPayload }) {
   const pathname = usePathname();
   const items = NAV[user.role] ?? [];
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      try {
+        const res = await fetch("/api/notifications/unread-count", { cache: "no-store" });
+        if (!res.ok || !alive) return;
+        const data = await res.json();
+        setUnread(data.count ?? 0);
+      } catch {}
+    }
+    load();
+    const id = setInterval(load, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [pathname]);
 
   function isActive(item: NavItem) {
     if (!item.href) return false;
@@ -57,18 +78,23 @@ export function MobileBottomNav({ user }: { user: UserPayload }) {
               )}
               <span
                 className={[
-                  "flex h-10 w-10 items-center justify-center rounded-2xl transition-colors",
+                  "relative flex h-10 w-10 items-center justify-center rounded-2xl transition-colors",
                   active ? "bg-[#00C853]/12 text-[#00A844]" : "text-slate-400",
                 ].join(" ")}
               >
                 <Icon size={22} strokeWidth={active ? 2.4 : 2} />
+                {item.key === "notifikasi" && unread > 0 && (
+                  <span className="absolute right-1 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#F26A3D] px-1 text-[9px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
               </span>
               <span className={["mt-0.5 text-[10px] font-semibold", active ? "text-[#00A844]" : "text-slate-400"].join(" ")}>
                 {item.label}
               </span>
             </>
           );
-          const cls = "relative flex min-w-16 flex-col items-center py-1";
+          const cls = "relative flex min-w-14 flex-col items-center py-1";
           return (
             <li key={item.key}>
               {item.href ? (

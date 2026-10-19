@@ -1,0 +1,7 @@
+"use client";
+
+import { NotifikasiPage } from "@/components/notifikasi/NotifikasiPage";
+
+export default function AdminNotifikasiPage() {
+  return <NotifikasiPage />;
+}

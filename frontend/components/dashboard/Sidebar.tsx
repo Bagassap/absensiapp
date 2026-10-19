@@ -8,7 +8,7 @@ import {
   X, LayoutDashboard,
   ChevronRight,
   ChevronsLeft, ChevronsRight,
-  ClipboardCheck, UserCheck, Users,
+  ClipboardCheck, UserCheck, Users, Bell,
 } from "lucide-react";
 import type { UserPayload } from "@/lib/auth";
 import { Avatar } from "@/components/shared/Avatar";
@@ -26,9 +26,11 @@ const MENUS: Record<string, MenuItem[]> = {
     { key: "absensi-harian", href: "/admin/absensi-harian", label: "Absensi Kegiatan", icon: ClipboardCheck },
     { key: "absensi-saya",   href: "/admin/absensi-saya",   label: "Absensi Saya",    icon: UserCheck },
     { key: "data-guru",      href: "/admin/data-guru",      label: "Data Guru",       icon: Users },
+    { key: "notifikasi",     href: "/admin/notifikasi",     label: "Notifikasi",      icon: Bell },
   ],
   GURU: [
     { key: "absensi-harian", href: "/guru/absensi-harian", label: "Absensi Kegiatan", icon: ClipboardCheck },
+    { key: "notifikasi",     href: "/guru/notifikasi",     label: "Notifikasi",       icon: Bell },
   ],
 };
 

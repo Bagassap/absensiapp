@@ -24,6 +24,7 @@ const PAGE_TITLES: Record<string, [string, string]> = {
   "absensi-saya":   ["Absensi Saya",    "Catat kehadiran Anda untuk kegiatan hari ini"],
   "data-guru":      ["Data Guru",       "Kelola akun dan status guru"],
   profil:           ["Profil Saya",     "Informasi dan pengaturan akun"],
+  notifikasi:       ["Notifikasi",      "Pemberitahuan terbaru"],
 };
 
 function getPageInfo(pathname: string) {
@@ -159,7 +160,8 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
     }
     if (n.link) {
       setNotifOpen(false);
-      router.push(`/${user.role.toLowerCase()}${n.link}`);
+      const prefix = `/${user.role.toLowerCase()}`;
+      router.push(n.link.startsWith(prefix) ? n.link : `${prefix}${n.link}`);
     }
   }
 
@@ -227,7 +229,10 @@ export function Topbar({ user, mobileHidden = false }: { user: UserPayload; mobi
 
           <div className="relative" ref={notifRef}>
             <button
-              onClick={() => setNotifOpen((v) => !v)}
+              onClick={() => {
+                if (window.matchMedia("(max-width: 1023px)").matches) router.push(`/${user.role.toLowerCase()}/notifikasi`);
+                else setNotifOpen((v) => !v);
+              }}
               className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25 lg:bg-slate-100 lg:text-slate-500 lg:hover:bg-slate-200 lg:hover:text-slate-700 dark:lg:bg-slate-700/50 dark:lg:text-slate-400 dark:lg:hover:bg-slate-700 dark:lg:hover:text-white"
             >
               <Bell size={16} />
