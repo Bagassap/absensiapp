@@ -157,7 +157,7 @@ export default function JadwalDhuhaPage() {
   }
 
   return (
-    <div className="relative isolate -m-4">
+    <div className="relative -m-4">
       <div className="relative flex items-center px-4 pb-3 pt-4">
         <button type="button" onClick={() => router.push("/admin/absensi-harian")}
           className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm active:bg-slate-100 dark:bg-slate-800 dark:text-slate-200">

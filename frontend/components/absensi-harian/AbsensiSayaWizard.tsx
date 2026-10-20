@@ -508,7 +508,7 @@ export function AbsensiSayaWizard() {
         </div>
       )}
 
-      <div className="relative isolate -m-4 lg:hidden">
+      <div className="relative -m-4 lg:hidden">
         <div className="space-y-4 bg-transparent p-4 dark:bg-slate-900">
           {loading ? (
             <div className="flex items-center justify-center py-16">
