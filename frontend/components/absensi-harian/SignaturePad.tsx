@@ -70,10 +70,10 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900">
+    <div className="overflow-hidden rounded-xl border border-dashed border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800">
       <canvas
         ref={canvasRef}
-        className="h-32 w-full touch-none cursor-crosshair"
+        className="h-32 w-full touch-none cursor-crosshair bg-white"
         onMouseDown={start}
         onMouseMove={move}
         onMouseUp={end}
