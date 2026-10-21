@@ -15,6 +15,7 @@ import { todayJakarta, parseLokasi, resolveMediaSrc, formatTgl } from "@/compone
 import { StatistikAbsensiChart } from "@/components/absensi-harian/StatistikAbsensiChart";
 import type { KegiatanUntukGuru } from "@/components/absensi-harian/types";
 import { LiveClock } from "@/components/shared/LiveClock";
+import { PageHeaderCard } from "@/components/shared/PageHeaderCard";
 import { GradientStatScroller, SectionHeading } from "@/components/dashboard/GradientStatScroller";
 import { compressImage, readAsDataUrl, describePhotoError } from "@/lib/compressImage";
 
@@ -221,26 +222,7 @@ export function AbsensiSayaWizard() {
 
   return (
     <div className="space-y-5">
-      <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-        className="relative hidden overflow-hidden rounded-2xl p-6 lg:block"
-        style={{ background: "#013920" }}>
-        <div className="pointer-events-none absolute -right-10 -top-10 h-60 w-60 rounded-full bg-white/10" />
-        <div className="pointer-events-none absolute -bottom-14 right-28 h-52 w-52 rounded-full bg-white/6" />
-
-        <div className="relative flex items-center gap-3 sm:gap-4">
-          <motion.div
-            initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", damping: 12, stiffness: 300, delay: 0.05 }}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg sm:h-14 sm:w-14">
-            <ClipboardCheck size={22} className="text-white sm:hidden" />
-            <ClipboardCheck size={26} className="hidden text-white sm:block" />
-          </motion.div>
-          <div className="min-w-0">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Presensi Kegiatan</span>
-            <h1 className="text-xl font-extrabold leading-tight text-white sm:text-2xl">Absensi Kegiatan</h1>
-          </div>
-        </div>
-      </motion.div>
+      <PageHeaderCard className="hidden lg:flex" icon={ClipboardCheck} tone="orange" eyebrow="Presensi Kegiatan" title="Absensi Kegiatan" description="Catat kehadiran Anda untuk kegiatan hari ini" />
 
       <div className="hidden lg:grid lg:grid-cols-3 lg:items-start lg:gap-8">
       <div className="lg:col-span-2 overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">

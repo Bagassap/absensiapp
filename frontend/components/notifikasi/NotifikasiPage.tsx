@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Bell, BellOff, CheckCheck, ClipboardCheck, Info, Loader2, Trash2 } from "lucide-react";
 import { timeAgo } from "@/components/dashboard/ActivityList";
 import { PushToggle } from "@/components/shared/PushToggle";
+import { PageHeaderCard } from "@/components/shared/PageHeaderCard";
 import { useToast } from "@/components/shared/ToastSystem";
 
 type ApiNotifType = "ABSENSI" | "SISTEM";
@@ -100,6 +101,8 @@ export function NotifikasiPage() {
 
   return (
     <div className="space-y-4">
+      <PageHeaderCard className="hidden lg:flex" icon={Bell} tone="rose" eyebrow="Pemberitahuan" title="Notifikasi" description="Pengingat absen dan informasi terbaru untuk Anda" />
+
       <div className="rounded-3xl bg-white dark:bg-slate-800">
         <PushToggle />
       </div>

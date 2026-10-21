@@ -18,6 +18,7 @@ import { useExportRange } from "@/components/absensi-harian/useExportRange";
 import { AbsensiHarianTable } from "@/components/absensi-harian/AbsensiHarianTable";
 import { LaporanRendahKehadiran } from "@/components/absensi-harian/LaporanRendahKehadiran";
 import { KegiatanCard } from "@/components/absensi-harian/KegiatanCard";
+import { PageHeaderCard } from "@/components/shared/PageHeaderCard";
 import { paginate } from "@/components/shared/PageSizeToggle";
 import { LiveClock } from "@/components/shared/LiveClock";
 import { MONTH_NAMES, RANGE_MODE_CARDS, reportCardFg, todayJakarta, formatTgl, KEGIATAN_WINDOW_CFG } from "@/components/absensi-harian/shared";
@@ -320,23 +321,7 @@ export default function AdminAbsensiHarianPage() {
   return (
     <>
       <div className="hidden space-y-5 p-1 lg:block">
-        <div className="relative overflow-hidden rounded-2xl p-6"
-          style={{ background: "#013920" }}>
-          <div className="pointer-events-none absolute -right-10 -top-10 h-52 w-52 rounded-full bg-white/10" />
-          <div className="pointer-events-none absolute -bottom-8 right-32 h-36 w-36 rounded-full bg-white/8" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg sm:h-14 sm:w-14">
-                <ClipboardCheck size={22} className="text-white sm:hidden" />
-                <ClipboardCheck size={26} className="hidden text-white sm:block" />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Pemantauan Absensi Kegiatan</span>
-                <h1 className="text-xl font-extrabold leading-tight text-white sm:text-2xl">Absensi Kegiatan</h1>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageHeaderCard icon={ClipboardCheck} tone="green" eyebrow="Pemantauan Absensi Kegiatan" title="Absensi Kegiatan" description="Pantau kehadiran guru per kegiatan secara real-time" />
 
         <div className="mb-8 rounded-3xl border border-slate-100 bg-white p-6 shadow-lg dark:border-slate-700 dark:bg-slate-800">
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-8">

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Users, Search, UserPlus } from "lucide-react";
 import { useToast } from "@/components/shared/ToastSystem";
+import { PageHeaderCard } from "@/components/shared/PageHeaderCard";
 import { DataGuruTable, type GuruRow } from "@/components/data-guru/DataGuruTable";
 import { EditGuruModal } from "@/components/data-guru/EditGuruModal";
 import { AddGuruModal } from "@/components/data-guru/AddGuruModal";
@@ -73,19 +74,7 @@ export default function AdminDataGuruPage() {
 
   return (
     <div className="space-y-5">
-      <div className="relative hidden overflow-hidden rounded-2xl p-6 lg:block" style={{ background: "#013920" }}>
-        <div className="pointer-events-none absolute -right-10 -top-10 h-60 w-60 rounded-full bg-white/10" />
-        <div className="pointer-events-none absolute -bottom-14 right-28 h-52 w-52 rounded-full bg-white/6" />
-        <div className="relative flex items-center gap-3 sm:gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg sm:h-14 sm:w-14">
-            <Users size={24} className="text-white" />
-          </div>
-          <div className="min-w-0">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Manajemen Akun</span>
-            <h1 className="text-xl font-extrabold leading-tight text-white sm:text-2xl">Data Guru</h1>
-          </div>
-        </div>
-      </div>
+      <PageHeaderCard className="hidden lg:flex" icon={Users} tone="blue" eyebrow="Manajemen Akun" title="Data Guru" description="Kelola akun, status, dan kata sandi guru" />
 
       <div className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-center">
         <div className="relative flex-1">
