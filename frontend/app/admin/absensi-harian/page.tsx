@@ -355,7 +355,20 @@ export default function AdminAbsensiHarianPage() {
               </div>
             </div>
 
-            <KegiatanCard tanggal={tanggal} onChanged={loadRekap} />
+            <div className="flex flex-col gap-5">
+              <KegiatanCard tanggal={tanggal} onChanged={loadRekap} />
+              <Link href="/admin/absensi-harian/dhuha"
+                className="group flex items-center gap-3 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm transition-colors hover:border-[#00C853]/40 dark:border-slate-700 dark:bg-slate-800">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "#00C853" }}>
+                  <CalendarDays size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">Jadwal Shalat Dhuha</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Atur guru terjadwal tiap minggu (siklus 4 minggu)</p>
+                </div>
+                <ChevronRight size={16} className="shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
           </div>
         </div>
 
