@@ -363,9 +363,9 @@ export function KegiatanCard({ tanggal, onChanged }: { tanggal: string; onChange
       {loading ? (
         <div className="flex items-center justify-center py-6 text-slate-400"><Loader2 size={18} className="animate-spin" /></div>
       ) : oneOffList.length === 0 ? (
-        <p className="py-6 text-center text-xs font-semibold text-slate-400">
-          {list.length === 0 ? "Belum ada kegiatan untuk tanggal ini" : "Semua kegiatan hari ini berasal dari Kegiatan Berulang — lihat & atur di bawah"}
-        </p>
+        list.length === 0 ? (
+          <p className="py-6 text-center text-xs font-semibold text-slate-400">Belum ada kegiatan untuk tanggal ini</p>
+        ) : null
       ) : (
         <div className="space-y-1.5">
           {oneOffList.map((k) => {
