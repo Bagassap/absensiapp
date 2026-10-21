@@ -107,7 +107,7 @@ export function LoginForm() {
             value={login}
             onChange={(e) => setLogin(e.target.value)}
             placeholder="Masukkan NPY"
-            className="w-full rounded-xl border border-black/10 bg-black/3 px-4 py-3 pl-11 text-sm text-black placeholder:text-black/35 outline-none transition-all focus:border-blue focus:bg-white focus:ring-2 focus:ring-blue/15"
+            className="w-full rounded-xl border border-transparent bg-black/4 sm:border-black/10 sm:bg-black/3 px-4 py-3 pl-11 text-sm text-black placeholder:text-black/35 outline-none transition-all focus:border-blue focus:bg-white focus:ring-2 focus:ring-blue/15"
           />
         </div>
       </motion.div>
@@ -130,7 +130,7 @@ export function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Kata sandi"
-            className="w-full rounded-xl border border-black/10 bg-black/3 px-4 py-3 pl-11 pr-11 text-sm text-black placeholder:text-black/35 outline-none transition-all focus:border-blue focus:bg-white focus:ring-2 focus:ring-blue/15"
+            className="w-full rounded-xl border border-transparent bg-black/4 sm:border-black/10 sm:bg-black/3 px-4 py-3 pl-11 pr-11 text-sm text-black placeholder:text-black/35 outline-none transition-all focus:border-blue focus:bg-white focus:ring-2 focus:ring-blue/15"
           />
           <button
             type="button"

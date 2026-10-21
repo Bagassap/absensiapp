@@ -28,7 +28,6 @@ export const metadata: Metadata = {
     "Sistem presensi kehadiran harian guru SMK Ma'arif NU 01 Limpung.",
   applicationName: "Absensi Guru",
   appleWebApp: { capable: true, title: "Absensi Guru", statusBarStyle: "default" },
-  icons: { apple: "/icon-192.png" },
 };
 
 export const viewport: Viewport = {

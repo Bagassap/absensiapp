@@ -13,20 +13,6 @@ const STYLES = `
   }
 `;
 
-const PARTICLES: { x: string; y: string; size: number; color: string; delay: number; dur: number }[] = [
-  { x: "89%",  y: "15%", size: 3,   color: "#00C853", delay: 0,    dur: 6.2 },
-  { x: "21%",  y: "10%", size: 2,   color: "#00C853", delay: 1.3,  dur: 7.6 },
-  { x: "46%",  y: "6%",  size: 3.5, color: "#00C853", delay: 0.7,  dur: 5.9 },
-  { x: "11%",  y: "43%", size: 2,   color: "#00C853", delay: 1.9,  dur: 8.1 },
-  { x: "77%",  y: "74%", size: 3,   color: "#00C853", delay: 0.4,  dur: 6.6 },
-  { x: "34%",  y: "82%", size: 2,   color: "#00C853", delay: 2.2,  dur: 7.1 },
-  { x: "7%",   y: "68%", size: 2.5, color: "#00C853", delay: 1.0,  dur: 5.6 },
-  { x: "93%",  y: "52%", size: 2,   color: "#00C853", delay: 1.6,  dur: 8.6 },
-  { x: "63%",  y: "90%", size: 3,   color: "#00C853", delay: 2.5,  dur: 6.3 },
-  { x: "27%",  y: "33%", size: 2,   color: "#00C853", delay: 0.8,  dur: 7.3 },
-  { x: "54%",  y: "60%", size: 1.5, color: "#00C853", delay: 3.0,  dur: 9.0 },
-  { x: "82%",  y: "38%", size: 2,   color: "#00C853", delay: 1.1,  dur: 6.8 },
-];
 
 const container: Variants = {
   hidden: {},
@@ -73,50 +59,9 @@ export function Splash() {
 
       <div
         className="absolute inset-0"
-        style={{ backgroundColor: "#FFF7E4" }}
+        style={{ backgroundColor: "#FFFFFF" }}
       />
 
-      <motion.div
-        className="pointer-events-none absolute right-[4%] top-[4%] h-100 w-100 rounded-full blur-[110px]"
-        style={{ background: "rgba(0,200,83,0.25)" }}
-        animate={{ x: [0, -48, 12, 0], y: [0, 28, -16, 0] }}
-        transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="pointer-events-none absolute bottom-[4%] left-[4%] h-90 w-90 rounded-full blur-[115px]"
-        style={{ background: "rgba(0, 200, 83,0.10)" }}
-        animate={{ x: [0, 38, -18, 0], y: [0, -22, 12, 0] }}
-        transition={{ duration: 34, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="pointer-events-none absolute bottom-[-8%] right-[18%] h-80 w-80 rounded-full blur-[95px]"
-        style={{ background: "rgba(0, 200, 83,0.08)" }}
-        animate={{ x: [0, -26, 0], y: [0, -18, 0] }}
-        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="pointer-events-none absolute left-[14%] top-[22%] h-65 w-65 rounded-full blur-[85px]"
-        style={{ background: "rgba(0,200,83,0.18)" }}
-        animate={{ x: [0, 22, -10, 0], y: [0, 32, -10, 0] }}
-        transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
-      />
-
-      {PARTICLES.map((p, i) => (
-        <motion.span
-          key={i}
-          className="pointer-events-none absolute rounded-full"
-          style={{
-            left: p.x,
-            top: p.y,
-            width: p.size,
-            height: p.size,
-            background: p.color,
-            boxShadow: `0 0 ${p.size * 2}px ${p.color}66`,
-          }}
-          animate={{ y: [0, -18, 0], opacity: [0.18, 0.35, 0.18] }}
-          transition={{ duration: p.dur, repeat: Infinity, ease: "easeInOut", delay: p.delay }}
-        />
-      ))}
 
       <motion.div
         initial="hidden"
@@ -137,30 +82,6 @@ export function Splash() {
         </motion.div>
 
         <motion.div variants={logoReveal} className="relative mb-8 flex items-center justify-center">
-          <motion.div
-            className="absolute rounded-full"
-            style={{
-              width: 200,
-              height: 200,
-              background:
-                "radial-gradient(circle, rgba(0,200,83,0.5), rgba(0,200,83,0.24) 55%, transparent 80%)",
-              filter: "blur(40px)",
-            }}
-            animate={{ scale: [1, 1.22, 1], opacity: [0.5, 0.9, 0.5] }}
-            transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute rounded-full"
-            style={{
-              width: 136,
-              height: 136,
-              background:
-                "radial-gradient(circle, rgba(0,200,83,0.4), rgba(0,200,83,0.18) 60%, transparent 80%)",
-              filter: "blur(18px)",
-            }}
-            animate={{ scale: [1, 1.1, 1], opacity: [0.6, 1, 0.6] }}
-            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
-          />
           <Image
             src="/PPLG.png"
             alt="Logo PPLG"
@@ -168,9 +89,6 @@ export function Splash() {
             height={910}
             priority
             className="relative h-28 w-auto sm:h-32"
-            style={{
-              filter: "drop-shadow(0 10px 28px rgba(0, 200, 83,0.22))",
-            }}
           />
         </motion.div>
 
