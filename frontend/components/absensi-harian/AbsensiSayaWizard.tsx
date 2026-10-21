@@ -12,7 +12,7 @@ import { useToast } from "@/components/shared/ToastSystem";
 import { SignaturePad } from "@/components/absensi-harian/SignaturePad";
 import { CameraCapture } from "@/components/absensi-harian/CameraCapture";
 import { todayJakarta, parseLokasi, resolveMediaSrc, formatTgl } from "@/components/absensi-harian/shared";
-import { StatistikAbsensiChart } from "@/components/absensi-harian/StatistikAbsensiChart";
+import { RiwayatAbsenCard } from "@/components/absensi-harian/RiwayatAbsenCard";
 import type { KegiatanUntukGuru } from "@/components/absensi-harian/types";
 import { LiveClock } from "@/components/shared/LiveClock";
 import { PageHeaderCard } from "@/components/shared/PageHeaderCard";
@@ -22,7 +22,6 @@ import { compressImage, readAsDataUrl, describePhotoError } from "@/lib/compress
 const INSECURE_CONTEXT_MSG = "Akses GPS memerlukan koneksi aman. Silakan buka lewat domain https, jangan menggunakan alamat IP langsung.";
 
 type Step = "SELFIE" | "FORM" | "DONE";
-type KehadiranStats = { totalKegiatanDiikuti: number; totalKegiatan: number };
 
 export function AbsensiSayaWizard() {
   const toast = useToast();
@@ -33,7 +32,6 @@ export function AbsensiSayaWizard() {
   const [step, setStep] = useState<Step>("SELFIE");
   const [submitting, setSubmitting] = useState(false);
   const [lastSubmitted, setLastSubmitted] = useState<KegiatanUntukGuru | null>(null);
-  const [stats, setStats] = useState<KehadiranStats | null>(null);
 
   const [selectedId, setSelectedId] = useState<string>("");
   const [fotoFile, setFotoFile] = useState<File | null>(null);
@@ -64,18 +62,7 @@ export function AbsensiSayaWizard() {
     }
   }, [today]);
 
-  const loadStats = useCallback(async () => {
-    try {
-      const res = await fetch("/api/dashboard/guru");
-      const d = await res.json().catch(() => null);
-      if (d?.kehadiran) {
-        setStats({ totalKegiatanDiikuti: d.kehadiran.totalKegiatanDiikuti ?? 0, totalKegiatan: d.kehadiran.totalKegiatan ?? 0 });
-      }
-    } catch {
-    }
-  }, []);
-
-  useEffect(() => { loadKegiatan(); loadStats(); }, [loadKegiatan, loadStats]);
+  useEffect(() => { loadKegiatan(); }, [loadKegiatan]);
 
   useEffect(() => {
     const id = setInterval(() => loadKegiatan(true), 60_000);
@@ -207,7 +194,6 @@ export function AbsensiSayaWizard() {
           setStep("DONE");
         }
         loadKegiatan(true);
-        loadStats();
       } else {
         const d = await res.json().catch(() => null);
         toast.error(d?.message ?? "Gagal mencatat absensi", "");
@@ -442,19 +428,7 @@ export function AbsensiSayaWizard() {
         )}
       </div>
 
-      <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h2 className="text-base font-bold text-slate-800 dark:text-white">Statistik Absensi</h2>
-        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Rekap kegiatan yang sudah Anda ikuti</p>
-        {stats && stats.totalKegiatan > 0 ? (
-          <StatistikAbsensiChart
-            diikuti={stats.totalKegiatanDiikuti}
-            belum={Math.max(0, stats.totalKegiatan - stats.totalKegiatanDiikuti)}
-            total={stats.totalKegiatan}
-          />
-        ) : (
-          <p className="py-16 text-center text-xs text-slate-400 dark:text-slate-500">Belum ada data kegiatan</p>
-        )}
-      </div>
+      <RiwayatAbsenCard />
       </div>
 
       {kegiatanList.some((k) => k.sudahAbsen) && (

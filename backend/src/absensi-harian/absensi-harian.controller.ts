@@ -148,6 +148,13 @@ export class AbsensiHarianController {
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.GURU)
+  @Get('saya/riwayat')
+  getRiwayatSaya(@Query('page') page: string, @Query('limit') limit: string, @Request() req: any) {
+    return this.service.getRiwayatSaya(req.user.id, page ? parseInt(page, 10) || 1 : 1, limit ? parseInt(limit, 10) || 10 : 10);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.GURU)
   @Get('saya')
   getStatusSaya(@Query('tanggal') tanggal: string, @Request() req: any) {
     return this.service.getStatusSaya(req.user.id, tanggal);

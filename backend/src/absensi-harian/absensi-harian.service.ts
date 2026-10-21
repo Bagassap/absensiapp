@@ -479,6 +479,40 @@ export class AbsensiHarianService {
     });
   }
 
+  async getRiwayatSaya(userId: string, page = 1, limit = 10) {
+    const guru = await this.prisma.guru.findUnique({ where: { userId } });
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safePage = Math.max(page, 1);
+    if (!guru) return { items: [], total: 0, page: safePage, limit: safeLimit, totalPages: 0 };
+    const where = { guruId: guru.id };
+    const [rows, total] = await Promise.all([
+      this.prisma.absensiKegiatan.findMany({
+        where,
+        include: { kegiatan: { select: { nama: true, tanggal: true, jamMulai: true, jamSelesai: true } } },
+        orderBy: [{ kegiatan: { tanggal: 'desc' } }, { waktuAbsen: 'desc' }],
+        skip: (safePage - 1) * safeLimit,
+        take: safeLimit,
+      }),
+      this.prisma.absensiKegiatan.count({ where }),
+    ]);
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        kegiatanNama: r.kegiatan.nama,
+        tanggal: r.kegiatan.tanggal,
+        jamLabel: `${minutesLabel(r.kegiatan.jamMulai)}-${minutesLabel(r.kegiatan.jamSelesai)} WIB`,
+        waktuAbsen: r.waktuAbsen,
+        status: r.status,
+        verified: r.verified,
+        catatan: r.catatan,
+      })),
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
+  }
+
   async getStatusSaya(userId: string, tanggal?: string) {
     const tgl = tanggal || todayStr();
     const guru = await this.prisma.guru.findUnique({ where: { userId } });
