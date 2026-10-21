@@ -25,6 +25,7 @@ const PAGE_TITLES: Record<string, [string, string]> = {
   "data-guru":      ["Data Guru",       "Kelola akun dan status guru"],
   profil:           ["Profil Saya",     "Informasi dan pengaturan akun"],
   notifikasi:       ["Notifikasi",      "Pemberitahuan terbaru"],
+  dhuha:            ["Jadwal Dhuha",    "Atur guru terjadwal shalat dhuha"],
 };
 
 function getPageInfo(pathname: string) {
