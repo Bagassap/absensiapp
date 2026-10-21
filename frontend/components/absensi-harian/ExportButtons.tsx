@@ -162,32 +162,32 @@ export function ExportButtons({ range, guruList }: {
     }
   }
 
-  const PDF_STYLE = { backgroundColor: "#FEE9EA", color: "#EF4444", borderColor: "#EF444430" };
-  const EXCEL_STYLE = { backgroundColor: "#E3FBF0", color: "#00D67F", borderColor: "#00D67F30" };
+  const PDF_STYLE = { backgroundColor: "#EF4444", color: "#FFFFFF" };
+  const EXCEL_STYLE = { backgroundColor: "#00A844", color: "#FFFFFF" };
 
   return (
     <>
       <div className="flex flex-nowrap items-center gap-1.5">
         <button type="button" onClick={() => runSemuaExport("pdf-semua")} disabled={disabled || !!loadingKind} title="PDF Semua Guru"
-          className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl border px-1.5 py-1.5 text-[10px] font-bold transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[11px] font-bold shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:!bg-slate-300 disabled:!text-white dark:disabled:!bg-slate-600"
           style={PDF_STYLE}>
           {loadingKind === "pdf-semua" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileText size={12} className="shrink-0" />}
           <span className="truncate">PDF Semua</span>
         </button>
         <button type="button" onClick={() => setPicker("pdf")} disabled={disabled || !!loadingKind} title="PDF Per Guru"
-          className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl border px-1.5 py-1.5 text-[10px] font-bold transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[11px] font-bold shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:!bg-slate-300 disabled:!text-white dark:disabled:!bg-slate-600"
           style={PDF_STYLE}>
           {loadingKind === "pdf-guru" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileText size={12} className="shrink-0" />}
           <span className="truncate">PDF Guru</span>
         </button>
         <button type="button" onClick={() => runSemuaExport("excel-semua")} disabled={disabled || !!loadingKind} title="Excel Semua Guru"
-          className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl border px-1.5 py-1.5 text-[10px] font-bold transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[11px] font-bold shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:!bg-slate-300 disabled:!text-white dark:disabled:!bg-slate-600"
           style={EXCEL_STYLE}>
           {loadingKind === "excel-semua" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileSpreadsheet size={12} className="shrink-0" />}
           <span className="truncate">Excel Semua</span>
         </button>
         <button type="button" onClick={() => setPicker("excel")} disabled={disabled || !!loadingKind} title="Excel Per Guru"
-          className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl border px-1.5 py-1.5 text-[10px] font-bold transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[11px] font-bold shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:!bg-slate-300 disabled:!text-white dark:disabled:!bg-slate-600"
           style={EXCEL_STYLE}>
           {loadingKind === "excel-guru" ? <Loader2 size={12} className="shrink-0 animate-spin" /> : <FileSpreadsheet size={12} className="shrink-0" />}
           <span className="truncate">Excel Guru</span>

@@ -14,7 +14,7 @@ const TONES: Record<Icon3DTone, { top: string; bottom: string; edge: string; glo
   blue: { top: "#8CC4FF", bottom: "#3B82F6", edge: "#1E54B7", glow: "59,130,246" },
 };
 
-export function Icon3D({ icon: Icon, tone = "green", size = 64 }: { icon: LucideIcon; tone?: Icon3DTone; size?: number }) {
+export function Icon3D({ icon: Icon, tone = "green", size = 64 }: { icon: React.ElementType; tone?: Icon3DTone; size?: number }) {
   const t = TONES[tone];
   return (
     <motion.div

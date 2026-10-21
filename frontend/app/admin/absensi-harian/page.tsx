@@ -18,10 +18,10 @@ import { useExportRange } from "@/components/absensi-harian/useExportRange";
 import { AbsensiHarianTable } from "@/components/absensi-harian/AbsensiHarianTable";
 import { LaporanRendahKehadiran } from "@/components/absensi-harian/LaporanRendahKehadiran";
 import { KegiatanCard } from "@/components/absensi-harian/KegiatanCard";
-import { PageHeaderCard } from "@/components/shared/PageHeaderCard";
+import { PageHeaderCard, Icon3D } from "@/components/shared/PageHeaderCard";
 import { paginate } from "@/components/shared/PageSizeToggle";
 import { LiveClock } from "@/components/shared/LiveClock";
-import { MONTH_NAMES, RANGE_MODE_CARDS, reportCardFg, todayJakarta, formatTgl, KEGIATAN_WINDOW_CFG } from "@/components/absensi-harian/shared";
+import { MONTH_NAMES, RANGE_MODE_CARDS, todayJakarta, formatTgl, KEGIATAN_WINDOW_CFG } from "@/components/absensi-harian/shared";
 import type { RekapKegiatanHarian, AbsensiKegiatanRow } from "@/components/absensi-harian/types";
 
 type GuruBasic = { guruId: string; nama: string; nip: string | null; npy: string | null; fotoProfil: string | null };
@@ -83,17 +83,15 @@ function RingkasanKehadiranPanel({ guruSudahAbsen, totalGuru, hadirPct, segments
   let cumulative = 0;
   return (
     <>
-      <div className="flex items-center gap-2.5 p-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "#00C853" }}>
-          <PieChart size={18} />
-        </span>
+      <div className="mb-4 flex items-center gap-3">
+        <Icon3D icon={PieChart} tone="green" size={44} />
         <div className="min-w-0">
           <p className="text-sm font-bold text-slate-800 dark:text-white">Ringkasan Kehadiran</p>
           <p className="truncate text-[11px] text-slate-400 dark:text-slate-500">Distribusi absensi per kegiatan hari ini</p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 p-4 pt-0 lg:flex-row lg:items-center">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
         <div className="flex flex-1 flex-col gap-2.5">
           <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
             Sudah <span className="font-bold text-slate-700 dark:text-slate-200">{guruSudahAbsen}</span> dari{" "}
@@ -139,32 +137,32 @@ function RingkasanKehadiranPanel({ guruSudahAbsen, totalGuru, hadirPct, segments
   );
 }
 
+const RANGE_TONE = { harian: "green", mingguan: "indigo", bulanan: "orange" } as const;
+
 function UnduhLaporanPanel({ exportRange, guruRoster }: {
   exportRange: ReturnType<typeof useExportRange>;
   guruRoster: GuruBasic[];
 }) {
   return (
     <>
-      <div className="mb-3 flex items-center gap-2.5">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "#00C853" }}>
-          <FileText size={18} />
-        </span>
+      <div className="mb-3 flex items-center gap-3">
+        <Icon3D icon={FileText} tone="green" size={44} />
         <div>
           <p className="text-sm font-bold text-slate-800 dark:text-white">Unduh Laporan</p>
           <p className="text-[11px] text-slate-400 dark:text-slate-500">Ekspor rekap absensi ke PDF/Excel</p>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-3">
         {RANGE_MODE_CARDS.map((opt) => {
           const active = exportRange.rangeMode === opt.key;
-          const fg = reportCardFg(opt.gradient);
           return (
             <button key={opt.key} type="button" onClick={() => exportRange.setRangeMode(opt.key)}
-              className="flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-center shadow-sm transition-all"
-              style={{ background: opt.gradient, color: fg, opacity: active ? 1 : 0.55, outline: active ? `2px solid ${fg}` : "2px solid transparent", outlineOffset: active ? "2px" : "0" }}>
-              <opt.icon size={16} />
-              <span className="text-[11px] font-bold">{opt.label}</span>
-              <span className="text-[9px] leading-tight" style={{ color: `${fg}BF` }}>{opt.caption}</span>
+              className={`flex flex-col items-center gap-2 rounded-2xl border bg-white px-2 py-4 text-center transition-all dark:bg-slate-800 ${
+                active ? "border-slate-900 shadow-md dark:border-white" : "border-slate-200 hover:border-slate-300 dark:border-slate-700"
+              }`}>
+              <Icon3D icon={opt.icon} tone={RANGE_TONE[opt.key]} size={44} />
+              <span className="text-xs font-bold text-slate-800 dark:text-white">{opt.label}</span>
+              <span className="text-[10px] leading-tight text-slate-500 dark:text-slate-400">{opt.caption}</span>
             </button>
           );
         })}
@@ -325,8 +323,8 @@ export default function AdminAbsensiHarianPage() {
 
         <div className="mb-8 rounded-3xl border border-slate-100 bg-white p-6 shadow-lg dark:border-slate-700 dark:bg-slate-800">
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-8">
-            <div className="flex flex-col gap-5 lg:col-span-2 lg:gap-8">
-              <div className="flex flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex flex-col gap-6 lg:col-span-2">
+              <div className="flex flex-col">
                 <RingkasanKehadiranPanel
                   guruSudahAbsen={guruSudahAbsen} totalGuru={totalGuru} hadirPct={hadirPct}
                   segments={segments} totalSlot={totalSlot}
@@ -335,7 +333,7 @@ export default function AdminAbsensiHarianPage() {
                   belumCount={belumUntukKegiatan}
                 />
               </div>
-              <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <div className="border-t border-slate-100 pt-6 dark:border-slate-700">
                 <UnduhLaporanPanel exportRange={exportRange} guruRoster={exportGuruRoster} />
               </div>
             </div>
